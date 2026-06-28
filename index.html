@@ -254,11 +254,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
           <button class="btn btn-primary btn-sm" onclick="showForm('add-personal-form')">+ Add personal</button>
         </div>
         <div class="person-tab"><button class="ptab active" id="ptab1" onclick="switchPerson(1)">P1</button><button class="ptab" id="ptab2" onclick="switchPerson(2)">P2</button></div>
-        <table><thead><tr><th>Name</th><th>Amount</th><th></th></tr></thead>
+        <table><thead><tr><th>Name</th><th>Due day</th><th>Amount</th><th></th></tr></thead>
         <tbody id="personal-bills-body"><tr><td colspan="3" class="empty-state">No personal bills</td></tr></tbody></table>
         <div id="add-personal-form" style="display:none" class="form-panel">
-          <div class="grid2" style="margin-bottom:10px">
+          <div class="grid3" style="margin-bottom:10px">
             <input type="text" id="pb-name" placeholder="e.g. Phone bill">
+            <input type="number" id="pb-day" placeholder="Due day (e.g. 15)" min="1" max="31">
             <input type="number" id="pb-amt" placeholder="£ amount" min="0">
           </div>
           <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="confirmPersonal()">Add</button><button class="btn btn-ghost btn-sm" onclick="hideForm('add-personal-form')">Cancel</button></div>
@@ -332,7 +333,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
       <div id="add-goal-form" style="display:none" class="form-panel" style="margin-bottom:16px">
         <div class="grid2" style="margin-bottom:10px">
           <input type="text" id="goal-name" placeholder="e.g. Holiday, House deposit">
-          <input type="number" id="goal-target" placeholder="Target £" min="0">
+          <input type="number" id="goal-target" placeholder="Target £ (optional)" min="0">
         </div>
         <div class="grid2" style="margin-bottom:10px">
           <input type="number" id="goal-saved" placeholder="Already saved £" min="0">
@@ -783,9 +784,9 @@ window.confirmGoal=async()=>{
   const target=parseFloat(document.getElementById('goal-target').value)||0;
   const saved=parseFloat(document.getElementById('goal-saved').value)||0;
   const monthly=parseFloat(document.getElementById('goal-monthly').value)||0;
-  if(!name||!target){showToast('Enter a name and target');return;}
+  if(!name){showToast('Enter a name');return;}
   state.goals=state.goals||[];
-  state.goals.push({name,target,saved,monthly});
+  state.goals.push({name,target:target||null,saved,monthly});
   ['goal-name','goal-target','goal-saved','goal-monthly'].forEach(id=>document.getElementById(id).value='');
   hideForm('add-goal-form');
   await push();showToast('Goal added!');
@@ -802,25 +803,26 @@ function renderGoals(c){
   if(!goals.length){el.innerHTML='<div class="empty-state">No goals yet — add one above</div>';return;}
   const colors=['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899'];
   el.innerHTML=goals.map((g,i)=>{
-    const target=parseFloat(g.target)||1;
+    const target=parseFloat(g.target)||0;
+    const hasTarget=target>0;
     const saved=parseFloat(g.saved)||0;
     const monthly=parseFloat(g.monthly)||0;
-    const pct=Math.min(100,Math.round((saved/target)*100));
-    const remaining=Math.max(0,target-saved);
-    const months=monthly>0?Math.ceil(remaining/monthly):null;
+    const pct=hasTarget?Math.min(100,Math.round((saved/target)*100)):null;
+    const remaining=hasTarget?Math.max(0,target-saved):null;
+    const months=hasTarget&&monthly>0?Math.ceil(remaining/monthly):null;
     const color=colors[i%colors.length];
     return `<div class="goal-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
         <div>
           <div style="font-weight:700;font-size:15px">${g.name}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">Target: ${fmt(target)} · Saved: ${fmt(saved)} · Monthly: ${fmt(monthly)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${hasTarget?'Target: '+fmt(target)+' · ':''} Saved: ${fmt(saved)} · Monthly: ${fmt(monthly)}</div>
         </div>
         <div style="text-align:right">
-          <span class="badge" style="background:rgba(59,130,246,.15);color:${color}">${pct}%</span>
+          ${pct!==null?`<span class="badge" style="background:rgba(59,130,246,.15);color:${color}">${pct}%</span>`:`<span class="badge badge-amber">Open-ended</span>`}
           ${months?`<div style="font-size:11px;color:var(--muted);margin-top:4px">~${months} months</div>`:''}
         </div>
       </div>
-      <div class="goal-bar"><div class="goal-fill" style="width:${pct}%;background:linear-gradient(90deg,${color},${color}aa)"></div></div>
+      ${hasTarget?`<div class="goal-bar"><div class="goal-fill" style="width:${pct}%;background:linear-gradient(90deg,${color},${color}aa)"></div></div>`:`<div style="font-size:12px;color:var(--muted);margin:6px 0 2px">Saving ${fmt(monthly)}/mo · ${fmt(saved)} accumulated so far</div>`}
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
         <button class="btn btn-success btn-sm" onclick="contributeGoal(${i},${monthly||50})">+ ${fmt(monthly||50)}</button>
         <button class="btn btn-ghost btn-sm" onclick="removeGoal(${i})">Remove</button>
@@ -845,6 +847,9 @@ function renderCalendar(){
   // Build bill map
   const billMap={};
   (state.sharedBills||[]).forEach(b=>{if(b.day){const k=parseInt(b.day);if(!billMap[k])billMap[k]=[];billMap[k].push({name:b.name,amt:b.amt,color:'var(--blue2)'});}});
+  // Personal bills on calendar
+  (state.personal1||[]).forEach(b=>{if(b.day){const k=parseInt(b.day);if(!billMap[k])billMap[k]=[];billMap[k].push({name:b.name+' ('+(state.name1||'P1')+')',amt:b.amt,color:'var(--blue2)'});}});
+  (state.personal2||[]).forEach(b=>{if(b.day){const k=parseInt(b.day);if(!billMap[k])billMap[k]=[];billMap[k].push({name:b.name+' ('+(state.name2||'P2')+')',amt:b.amt,color:'var(--em2)'});}});
   // Payday dots
   if(state.payday1){const k=state.payday1;if(!billMap[k])billMap[k]=[];billMap[k].push({name:(state.name1||'P1')+' payday',amt:state.income1,color:'var(--em2)',isPayday:true});}
   if(state.payday2){const k=state.payday2;if(!billMap[k])billMap[k]=[];billMap[k].push({name:(state.name2||'P2')+' payday',amt:state.income2,color:'var(--em2)',isPayday:true});}
@@ -905,7 +910,7 @@ function renderPersonalTable(){
   const bills=currentPerson===1?(state.personal1||[]):(state.personal2||[]);
   const tb=document.getElementById('personal-bills-body');if(!tb)return;
   if(!bills.length){tb.innerHTML='<tr><td colspan="3" class="empty-state">No personal bills</td></tr>';return;}
-  tb.innerHTML=bills.map((b,i)=>`<tr><td>${b.name}</td><td style="font-weight:700">${fmt(b.amt)}</td><td><button class="btn btn-danger btn-sm" onclick="removePersonal(${i})">✕</button></td></tr>`).join('');
+  tb.innerHTML=bills.map((b,i)=>`<tr><td>${b.name}</td><td style="color:var(--muted)">${b.day?'Day '+b.day:'—'}</td><td style="font-weight:700">${fmt(b.amt)}</td><td><button class="btn btn-danger btn-sm" onclick="removePersonal(${i})">✕</button></td></tr>`).join('');
 }
 function renderExtraList(){
   const arr=extraPerson===1?(state.extra1||[]):(state.extra2||[]);
@@ -1062,10 +1067,11 @@ window.removeBill=async i=>{state.sharedBills.splice(i,1);await push();};
 window.switchPerson=n=>{currentPerson=n;document.getElementById('ptab1').classList.toggle('active',n===1);document.getElementById('ptab2').classList.toggle('active',n===2);renderPersonalTable();};
 window.confirmPersonal=async()=>{
   const name=document.getElementById('pb-name').value.trim();
+  const day=parseInt(document.getElementById('pb-day').value)||null;
   const amt=parseFloat(document.getElementById('pb-amt').value)||0;
   if(!name||!amt){showToast('Enter a name and amount');return;}
-  (currentPerson===1?state.personal1:state.personal2).push({name,amt});
-  document.getElementById('pb-name').value='';document.getElementById('pb-amt').value='';
+  (currentPerson===1?state.personal1:state.personal2).push({name,day,amt});
+  document.getElementById('pb-name').value='';document.getElementById('pb-day').value='';document.getElementById('pb-amt').value='';
   hideForm('add-personal-form');await push();showToast('Added!');
 };
 window.removePersonal=async i=>{(currentPerson===1?state.personal1:state.personal2).splice(i,1);await push();};
