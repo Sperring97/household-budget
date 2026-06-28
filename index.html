@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HomeBudget">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="manifest" href="manifest.json">
+<title>HomeBudget</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0a0f1e;--card:#111827;--card2:#1a2235;--border:#1e2d45;
+  --blue:#3b82f6;--blue2:#60a5fa;--emerald:#10b981;--em2:#34d399;
+  --text:#f1f5f9;--muted:#94a3b8;--dim:#4b5563;--sidebar:#070c18;
+  --red:#ef4444;--amber:#f59e0b;--purple:#a78bfa;--input-bg:#0d1524;
+}
+body.light-mode{
+  --navy:#f1f5f9;--card:#ffffff;--card2:#f8fafc;--border:#e2e8f0;
+  --text:#0f172a;--muted:#64748b;--dim:#94a3b8;--sidebar:#1e293b;
+  --input-bg:#f8fafc;
+}
+body{background:var(--navy);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;font-size:14px;transition:background .25s,color .25s}
+h2{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:210px;background:var(--sidebar);border-right:1px solid var(--border);padding:20px 0;flex-shrink:0;display:flex;flex-direction:column;transition:background .25s}
+.logo{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.logo-title{font-size:17px;font-weight:700;color:#f1f5f9}
+.logo-sub{font-size:10px;color:#94a3b8;margin-top:2px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;color:#94a3b8;font-size:13px;font-weight:500;transition:all .15s;border-left:3px solid transparent}
+.nav-item:hover{color:#f1f5f9;background:rgba(59,130,246,.06)}
+.nav-item.active{color:var(--blue2);background:rgba(59,130,246,.1);border-left-color:var(--blue)}
+.theme-btn{margin:4px 20px 0;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;cursor:pointer;border:1px solid rgba(255,255,255,.1);background:transparent;color:#94a3b8;font-size:12px;font-weight:600;transition:all .15s}
+.theme-btn:hover{background:rgba(255,255,255,.06);color:#f1f5f9}
+.main{flex:1;overflow-y:auto;padding:28px}
+.page{display:none}.page.active{display:block}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;transition:background .25s,border-color .25s}
+.card-sm{padding:16px}
+.metric-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.metric-val{font-size:24px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+.metric-sub{font-size:11px;color:var(--muted);margin-top:4px}
+.badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.05em}
+.badge-blue{background:rgba(59,130,246,.15);color:var(--blue2)}
+.badge-green{background:rgba(16,185,129,.15);color:var(--em2)}
+.badge-amber{background:rgba(245,158,11,.15);color:#fcd34d}
+.badge-red{background:rgba(239,68,68,.15);color:#fca5a5}
+input[type=text],input[type=number],select,textarea{background:var(--input-bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;width:100%;outline:none;transition:border .15s,background .25s;font-family:inherit}
+input[type=text]:focus,input[type=number]:focus,select:focus,textarea:focus{border-color:var(--blue)}
+select option{background:var(--input-bg);color:var(--text)}
+textarea{resize:vertical;min-height:72px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:#2563eb}
+.btn-danger{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.2)}.btn-danger:hover{background:rgba(239,68,68,.25)}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}.btn-ghost:hover{color:var(--text);border-color:var(--blue)}
+.btn-success{background:rgba(16,185,129,.15);color:var(--em2);border:1px solid rgba(16,185,129,.25)}.btn-success:hover{background:rgba(16,185,129,.25)}
+.btn-sm{padding:6px 12px;font-size:12px}
+table{width:100%;border-collapse:collapse}
+td,th{padding:10px 12px;text-align:left;font-size:13px}
+th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--border)}
+td{border-bottom:1px solid rgba(100,116,139,.15);color:var(--text)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(59,130,246,.03)}
+input[type=range]{width:100%;-webkit-appearance:none;height:6px;border-radius:3px;background:var(--border);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--blue);border:3px solid var(--card);cursor:pointer}
+.range-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:6px}
+.ai-box{background:var(--card2);border:1px solid rgba(59,130,246,.2);border-radius:10px;padding:16px;font-size:13px;color:var(--blue2);line-height:1.75;min-height:72px;transition:background .25s}
+.split-bar{height:8px;border-radius:4px;background:var(--border);overflow:hidden;margin:8px 0}
+.split-fill{height:100%;border-radius:4px;transition:width .4s ease}
+.sync-badge{font-size:10px;color:var(--em2);display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);border-radius:20px}
+.person-tab{display:flex;gap:8px;margin-bottom:16px}
+.ptab{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:transparent;transition:all .15s}
+.ptab.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.section-title{font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px}
+.section-sub{font-size:12px;color:var(--muted);margin-bottom:22px}
+.tag{font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.tag-shared{background:rgba(99,102,241,.15);color:#a5b4fc}
+.tag-p1{background:rgba(59,130,246,.15);color:var(--blue2)}
+.tag-p2{background:rgba(16,185,129,.15);color:var(--em2)}
+.chart-wrap{position:relative;width:100%;height:240px}
+.donut-wrap{position:relative;width:100%;height:210px}
+.page-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+.debt-card{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;transition:background .25s}
+.progress-wrap{height:6px;background:var(--border);border-radius:3px;margin:8px 0;overflow:hidden}
+.progress-fill{height:100%;border-radius:3px;transition:width .5s ease}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--card);border:1px solid var(--emerald);border-radius:8px;padding:10px 16px;font-size:12px;color:var(--em2);display:none;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.empty-state{text-align:center;padding:24px 16px;color:var(--muted);font-size:13px}
+.person-col{border:1px solid var(--border);border-radius:12px;padding:18px;background:var(--card);transition:background .25s}
+.pc-head{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.pc-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0}
+.pc-row{display:flex;justify-content:space-between;padding:7px 0;font-size:13px;border-bottom:1px solid rgba(100,116,139,.12)}
+.pc-row:last-child{border-bottom:none}
+.pc-row .lbl{color:var(--muted)}
+.list-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--input-bg);border-radius:6px;margin-bottom:6px;font-size:13px;transition:background .25s}
+.form-panel{background:var(--card2);border-radius:8px;padding:16px;margin-top:12px;border:1px solid var(--border)}
+/* Budget tracker */
+.budget-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(100,116,139,.12)}
+.budget-row:last-child{border-bottom:none}
+.budget-bar-wrap{flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden}
+.budget-bar-fill{height:100%;border-radius:4px;transition:width .4s}
+/* History */
+.history-card{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:10px;cursor:pointer;transition:border-color .15s}
+.history-card:hover{border-color:var(--blue)}
+.history-month{font-weight:700;font-size:14px}
+.history-meta{font-size:11px;color:var(--muted);margin-top:2px}
+/* Goals */
+.goal-card{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px}
+.goal-bar{height:10px;background:var(--border);border-radius:5px;overflow:hidden;margin:8px 0}
+.goal-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--em2));border-radius:5px;transition:width .5s}
+/* Calendar */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:12px}
+.cal-cell{border-radius:6px;padding:6px 4px;text-align:center;font-size:11px;min-height:48px;background:var(--card2);border:1px solid var(--border);position:relative;transition:background .25s}
+.cal-cell.has-bill{border-color:var(--blue)}
+.cal-cell .day-num{font-weight:700;font-size:12px;color:var(--text);margin-bottom:2px}
+.cal-cell .bill-dot{font-size:9px;color:var(--blue2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-header{font-size:10px;color:var(--muted);text-align:center;font-weight:600;letter-spacing:.05em}
+/* Payday countdown */
+.payday-card{background:linear-gradient(135deg,rgba(59,130,246,.1),rgba(16,185,129,.08));border:1px solid rgba(59,130,246,.2);border-radius:12px;padding:16px}
+/* Spending tracker entry */
+.spend-entry{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+@media(max-width:640px){
+  .app{flex-direction:column;height:auto}
+  .sidebar{width:100%;flex-direction:row;overflow-x:auto;padding:0;border-right:none;border-bottom:1px solid var(--border)}
+  .logo{display:none}.theme-btn{display:none}
+  .nav-item{padding:12px 14px;font-size:11px;border-left:none;border-bottom:3px solid transparent;white-space:nowrap}
+  .nav-item.active{border-bottom-color:var(--blue);border-left:none;background:rgba(59,130,246,.08)}
+  .main{padding:16px;overflow-y:auto}
+  .grid2,.grid3,.grid4{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="sidebar">
+    <div class="logo">
+      <div class="logo-title">🏠 HomeBudget</div>
+      <div class="logo-sub">Shared household finance</div>
+    </div>
+    <div class="nav-item active"  onclick="goTo('dashboard')">📊 Dashboard</div>
+    <div class="nav-item"         onclick="goTo('income')">💷 Income &amp; Bills</div>
+    <div class="nav-item"         onclick="goTo('tracker')">🧾 Spend Tracker</div>
+    <div class="nav-item"         onclick="goTo('savings')">📈 Savings Planner</div>
+    <div class="nav-item"         onclick="goTo('goals')">🎯 Goals</div>
+    <div class="nav-item"         onclick="goTo('debts')">💳 Debt Tracker</div>
+    <div class="nav-item"         onclick="goTo('calendar')">📅 Bill Calendar</div>
+    <div class="nav-item"         onclick="goTo('history')">🕒 History</div>
+    <div class="nav-item"         onclick="goTo('settings')">⚙️ Settings</div>
+    <button class="theme-btn" onclick="toggleTheme()" id="theme-btn">🌙 Dark mode</button>
+  </nav>
+
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-title">
+        <div><div class="section-title">Dashboard</div><div class="section-sub" style="margin-bottom:0">Your live household picture</div></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div id="sync-status" class="sync-badge" style="display:none">● Live sync</div>
+          <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" id="theme-btn-top">🌙</button>
+        </div>
+      </div>
+      <!-- Payday countdown -->
+      <div class="grid2" style="margin-bottom:16px" id="payday-strip"></div>
+      <div class="grid4" style="margin-bottom:16px">
+        <div class="card card-sm"><div class="metric-label">Money in this month</div><div class="metric-val" id="d-income" style="color:var(--blue2)">£0</div><div class="metric-sub" id="d-income-sub">pay + extras</div></div>
+        <div class="card card-sm"><div class="metric-label">Total outgoings</div><div class="metric-val" id="d-out" style="color:var(--red)">£0</div><div class="metric-sub">bills + debt mins</div></div>
+        <div class="card card-sm"><div class="metric-label">Free pot</div><div class="metric-val" id="d-free" style="color:var(--em2)">£0</div><div class="metric-sub">after everything</div></div>
+        <div class="card card-sm"><div class="metric-label">Combined bank balance</div><div class="metric-val" id="d-bank" style="color:var(--purple)">£0</div><div class="metric-sub">what you have now</div></div>
+      </div>
+      <h2>Per-person breakdown</h2>
+      <div class="grid2" style="margin-bottom:16px" id="person-cols"></div>
+      <div class="grid2">
+        <div class="card"><h2>Outgoings by category</h2><div class="donut-wrap"><canvas id="donutChart"></canvas></div><div id="donut-legend" style="display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:11px;color:var(--muted)"></div></div>
+        <div class="card"><h2>Monthly cash flow</h2><div class="chart-wrap"><canvas id="barChart"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- INCOME & BILLS -->
+    <div class="page" id="page-income">
+      <div class="section-title">Income &amp; Bills</div>
+      <div class="section-sub">Update pay, log extras, manage all outgoings</div>
+      <div class="grid2" style="margin-bottom:16px">
+        <div class="card">
+          <h2>Base monthly take-home</h2>
+          <div style="margin-bottom:12px">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px" id="p1-label">Person 1</div>
+            <input type="number" id="p1-income" placeholder="£0" min="0" oninput="onCoreInput()">
+          </div>
+          <div style="margin-bottom:12px">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Payday (day of month)</div>
+            <input type="number" id="p1-payday" placeholder="e.g. 25" min="1" max="31" oninput="onCoreInput()">
+          </div>
+        </div>
+        <div class="card">
+          <h2>Base monthly take-home</h2>
+          <div style="margin-bottom:12px">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px" id="p2-label">Person 2</div>
+            <input type="number" id="p2-income" placeholder="£0" min="0" oninput="onCoreInput()">
+          </div>
+          <div style="margin-bottom:12px">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Payday (day of month)</div>
+            <input type="number" id="p2-payday" placeholder="e.g. 1" min="1" max="31" oninput="onCoreInput()">
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <h2>💰 Current bank balances</h2>
+        <div class="grid2">
+          <div><div style="font-size:12px;color:var(--muted);margin-bottom:4px" id="bal1-label">Person 1</div><input type="number" id="bal1" placeholder="£0" oninput="onCoreInput()"></div>
+          <div><div style="font-size:12px;color:var(--muted);margin-bottom:4px" id="bal2-label">Person 2</div><input type="number" id="bal2" placeholder="£0" oninput="onCoreInput()"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div><h2 style="margin-bottom:2px">Variable income this month</h2><div style="font-size:11px;color:var(--dim)">Bonuses, rent income, side work</div></div>
+          <button class="btn btn-primary btn-sm" onclick="showForm('add-extra-form')">+ Add income</button>
+        </div>
+        <div class="person-tab"><button class="ptab active" id="etab1" onclick="switchExtraPerson(1)">P1</button><button class="ptab" id="etab2" onclick="switchExtraPerson(2)">P2</button></div>
+        <div id="extra-list"><div class="empty-state">No extra income logged this month</div></div>
+        <div id="add-extra-form" style="display:none" class="form-panel">
+          <div class="grid2" style="margin-bottom:10px">
+            <input type="text" id="extra-name" placeholder="e.g. Q1 bonus / Flat 2 rent">
+            <input type="number" id="extra-amt" placeholder="£ amount" min="0">
+          </div>
+          <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="confirmExtra()">Add</button><button class="btn btn-ghost btn-sm" onclick="hideForm('add-extra-form')">Cancel</button></div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h2 style="margin-bottom:0">Shared household bills</h2>
+          <button class="btn btn-primary btn-sm" onclick="showForm('add-bill-form')">+ Add bill</button>
+        </div>
+        <table><thead><tr><th>Name</th><th>Category</th><th>Due day</th><th>Amount</th><th></th></tr></thead>
+        <tbody id="shared-bills-body"><tr><td colspan="5" class="empty-state">No shared bills yet</td></tr></tbody></table>
+        <div id="add-bill-form" style="display:none" class="form-panel">
+          <div class="grid4" style="margin-bottom:10px">
+            <input type="text" id="bill-name" placeholder="e.g. Rent">
+            <select id="bill-cat"><option>Housing</option><option>Utilities</option><option>Subscriptions</option><option>Insurance</option><option>Groceries</option><option>Transport</option><option>Other</option></select>
+            <input type="number" id="bill-day" placeholder="Due day" min="1" max="31">
+            <input type="number" id="bill-amt" placeholder="£ amount" min="0">
+          </div>
+          <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="confirmBill()">Add</button><button class="btn btn-ghost btn-sm" onclick="hideForm('add-bill-form')">Cancel</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h2 style="margin-bottom:0">Personal outgoings</h2>
+          <button class="btn btn-primary btn-sm" onclick="showForm('add-personal-form')">+ Add personal</button>
+        </div>
+        <div class="person-tab"><button class="ptab active" id="ptab1" onclick="switchPerson(1)">P1</button><button class="ptab" id="ptab2" onclick="switchPerson(2)">P2</button></div>
+        <table><thead><tr><th>Name</th><th>Amount</th><th></th></tr></thead>
+        <tbody id="personal-bills-body"><tr><td colspan="3" class="empty-state">No personal bills</td></tr></tbody></table>
+        <div id="add-personal-form" style="display:none" class="form-panel">
+          <div class="grid2" style="margin-bottom:10px">
+            <input type="text" id="pb-name" placeholder="e.g. Phone bill">
+            <input type="number" id="pb-amt" placeholder="£ amount" min="0">
+          </div>
+          <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="confirmPersonal()">Add</button><button class="btn btn-ghost btn-sm" onclick="hideForm('add-personal-form')">Cancel</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SPEND TRACKER -->
+    <div class="page" id="page-tracker">
+      <div class="section-title">Spend Tracker</div>
+      <div class="section-sub">Log actual spending against your category budgets this month</div>
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h2 style="margin-bottom:0">Category budgets &amp; spending</h2>
+          <button class="btn btn-primary btn-sm" onclick="showForm('add-budget-form')">+ Set budget</button>
+        </div>
+        <div id="budget-list"><div class="empty-state">Set a budget for a category to start tracking</div></div>
+        <div id="add-budget-form" style="display:none" class="form-panel">
+          <div class="grid2" style="margin-bottom:10px">
+            <select id="budget-cat"><option>Groceries</option><option>Eating out</option><option>Transport</option><option>Entertainment</option><option>Clothing</option><option>Health</option><option>Holidays</option><option>Other</option></select>
+            <input type="number" id="budget-amt" placeholder="Monthly budget £" min="0">
+          </div>
+          <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="confirmBudget()">Set budget</button><button class="btn btn-ghost btn-sm" onclick="hideForm('add-budget-form')">Cancel</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h2 style="margin-bottom:0">Log a purchase</h2>
+        </div>
+        <div class="grid3" style="margin-bottom:10px">
+          <input type="text" id="spend-desc" placeholder="e.g. Tesco shop">
+          <select id="spend-cat"><option>Groceries</option><option>Eating out</option><option>Transport</option><option>Entertainment</option><option>Clothing</option><option>Health</option><option>Holidays</option><option>Other</option></select>
+          <input type="number" id="spend-amt" placeholder="£ amount" min="0">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="logSpend()">Log purchase</button>
+        <div style="margin-top:16px" id="spend-log"></div>
+      </div>
+    </div>
+
+    <!-- SAVINGS PLANNER -->
+    <div class="page" id="page-savings">
+      <div class="section-title">Savings Planner</div>
+      <div class="section-sub">See what each of you can realistically save</div>
+      <div class="card" style="margin-bottom:16px">
+        <h2>Saving intensity</h2>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:14px;font-weight:600" id="slider-label">Balanced</span>
+          <span class="badge badge-blue" id="slider-pct">20%</span>
+        </div>
+        <input type="range" id="save-slider" min="0" max="100" value="20" step="1" oninput="onSlider(this.value)">
+        <div class="range-labels"><span>😌 Relaxed</span><span>⚖️ Balanced</span><span>🔥 Aggressive</span></div>
+      </div>
+      <div class="grid2" style="margin-bottom:16px" id="savings-cols"></div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <h2 style="margin-bottom:0">Savings advisor</h2>
+          <span class="badge badge-blue">Smart analysis</span>
+        </div>
+        <div class="ai-box" id="savings-ai-box">Enter your income and bills, then move the slider.</div>
+      </div>
+    </div>
+
+    <!-- GOALS -->
+    <div class="page" id="page-goals">
+      <div class="section-title">Savings Goals</div>
+      <div class="section-sub">Named pots with targets and timelines</div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+        <button class="btn btn-primary btn-sm" onclick="showForm('add-goal-form')">+ Add goal</button>
+      </div>
+      <div id="goals-list"><div class="empty-state">No goals yet — add one above</div></div>
+      <div id="add-goal-form" style="display:none" class="form-panel" style="margin-bottom:16px">
+        <div class="grid2" style="margin-bottom:10px">
+          <input type="text" id="goal-name" placeholder="e.g. Holiday, House deposit">
+          <input type="number" id="goal-target" placeholder="Target £" min="0">
+        </div>
+        <div class="grid2" style="margin-bottom:10px">
+          <input type="number" id="goal-saved" placeholder="Already saved £" min="0">
+          <input type="number" id="goal-monthly" placeholder="Monthly contribution £" min="0">
+        </div>
+        <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="confirmGoal()">Add goal</button><button class="btn btn-ghost btn-sm" onclick="hideForm('add-goal-form')">Cancel</button></div>
+      </div>
+    </div>
+
+    <!-- DEBT TRACKER -->
+    <div class="page" id="page-debts">
+      <div class="section-title">Debt Tracker</div>
+      <div class="section-sub">Tag debts by person — see who owes what and the fastest path to clear it</div>
+      <div class="grid3" style="margin-bottom:16px" id="debt-summary-cols"></div>
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h2 style="margin-bottom:0">All debts</h2>
+          <button class="btn btn-primary btn-sm" onclick="showForm('add-debt-form')">+ Add debt</button>
+        </div>
+        <div id="debt-list"><div class="empty-state">No debts — or you're debt free! 🎉</div></div>
+        <div id="add-debt-form" style="display:none" class="form-panel">
+          <div class="grid2" style="margin-bottom:10px">
+            <input type="text" id="debt-name" placeholder="Creditor (e.g. Barclaycard)">
+            <select id="debt-person"><option value="1">Person 1</option><option value="2">Person 2</option><option value="shared">Joint</option></select>
+          </div>
+          <div class="grid3" style="margin-bottom:10px">
+            <input type="number" id="debt-balance" placeholder="Balance £" min="0">
+            <input type="number" id="debt-apr" placeholder="APR %" step="0.1" min="0">
+            <input type="number" id="debt-min" placeholder="Min payment £" min="0">
+          </div>
+          <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="confirmDebt()">Add debt</button><button class="btn btn-ghost btn-sm" onclick="hideForm('add-debt-form')">Cancel</button></div>
+        </div>
+      </div>
+      <!-- Update balance -->
+      <div class="card" style="margin-bottom:16px" id="debt-update-panel" style="display:none">
+        <h2>Update a debt balance</h2>
+        <div class="grid3" style="margin-bottom:10px">
+          <select id="debt-update-select"><option value="">— pick a debt —</option></select>
+          <input type="number" id="debt-update-val" placeholder="New balance £" min="0">
+          <button class="btn btn-success" onclick="updateDebtBalance()">Update</button>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <h2 style="margin-bottom:0">Payoff strategy</h2>
+          <button class="btn btn-ghost btn-sm" onclick="runDebtAnalysis()">Analyse</button>
+        </div>
+        <div class="ai-box" id="debt-ai-box">Add debts then click Analyse.</div>
+      </div>
+      <div class="card">
+        <h2>Payoff timeline</h2>
+        <div style="position:relative;height:220px"><canvas id="debtChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- BILL CALENDAR -->
+    <div class="page" id="page-calendar">
+      <div class="section-title">Bill Calendar</div>
+      <div class="section-sub">See exactly which weeks are heavy — plan around the big ones</div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h2 style="margin-bottom:0" id="cal-month-label">This month</h2>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="changeCalMonth(-1)">‹ Prev</button>
+            <button class="btn btn-ghost btn-sm" onclick="changeCalMonth(1)">Next ›</button>
+          </div>
+        </div>
+        <div class="cal-grid" id="cal-header"></div>
+        <div class="cal-grid" id="cal-body"></div>
+        <div style="margin-top:16px;font-size:12px;color:var(--muted)">Bills with a set due day appear on that date. Bills without a due day appear at the top of the list below.</div>
+        <div style="margin-top:12px" id="cal-unscheduled"></div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="page" id="page-history">
+      <div class="section-title">Monthly History</div>
+      <div class="section-sub">A record of every month you've locked — tap to expand</div>
+      <div id="history-list"><div class="empty-state">No history yet — lock this month from the Settings page when you're done</div></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="section-title">Settings</div>
+      <div class="section-sub">Names, theme, monthly archiving</div>
+      <div class="grid2">
+        <div class="card">
+          <h2>Your names</h2>
+          <div style="margin-bottom:12px"><div style="font-size:12px;color:var(--muted);margin-bottom:4px">Person 1 name</div><input type="text" id="name1-input" placeholder="e.g. Alex" oninput="saveName()"></div>
+          <div style="margin-bottom:20px"><div style="font-size:12px;color:var(--muted);margin-bottom:4px">Person 2 name</div><input type="text" id="name2-input" placeholder="e.g. Partner" oninput="saveName()"></div>
+          <hr class="divider">
+          <h2>Theme</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="setTheme('dark')">🌙 Dark</button>
+            <button class="btn btn-ghost btn-sm" onclick="setTheme('light')">☀️ Light</button>
+            <button class="btn btn-ghost btn-sm" onclick="setTheme('auto')">⚙️ Auto</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>🗓️ End of month</h2>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.6">Lock this month's snapshot into History — income, bills, savings, debts, notes. Variable income entries clear for the new month. Everything else stays.</div>
+          <div style="margin-bottom:12px"><textarea id="month-notes" placeholder="Any notes for this month? (e.g. high spend — birthday trip, Alex bonus arrived late...)"></textarea></div>
+          <button class="btn btn-success" onclick="lockMonth()">🔒 Lock this month</button>
+          <hr class="divider">
+          <h2>New month (without locking)</h2>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Clears variable income only — no history saved.</div>
+          <button class="btn btn-ghost btn-sm" onclick="resetMonth()">Start fresh month</button>
+          <hr class="divider">
+          <div style="font-size:11px;color:var(--dim);line-height:1.9">
+            <div>🔒 Firebase: <span style="color:var(--muted)">joint-household-budget</span></div>
+            <div>⚡ Real-time sync active</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, doc, onSnapshot, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey:"AIzaSyDMRCxgCKPjM1JliexU5iQ5XsFdRKYpekA",
+  authDomain:"joint-household-budget.firebaseapp.com",
+  projectId:"joint-household-budget",
+  storageBucket:"joint-household-budget.firebasestorage.app",
+  messagingSenderId:"1028215313066",
+  appId:"1:1028215313066:web:2b6cbeaf5772177d6fb6d3"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const DOC = doc(db,'household','main');
+
+let state = {
+  name1:'Person 1',name2:'Person 2',
+  income1:0,income2:0,payday1:25,payday2:1,
+  extra1:[],extra2:[],
+  bal1:0,bal2:0,
+  sharedBills:[],personal1:[],personal2:[],
+  debts:[],saveSlider:20,
+  budgets:[],spends:[],
+  goals:[],history:[]
+};
+let ch={donut:null,bar:null,debt:null};
+let currentPerson=1,extraPerson=1;
+let sliderDebounce=null;
+let themeMode='auto';
+let calOffset=0;
+
+// ── Theme ────────────────────────────────────────────────────────────────────
+function applyTheme(){
+  const prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const useDark=themeMode==='dark'||(themeMode==='auto'&&prefersDark);
+  document.body.classList.toggle('light-mode',!useDark);
+  const icon=useDark?'☀️':'🌙';
+  const lbl=useDark?'☀️ Light mode':'🌙 Dark mode';
+  const b=document.getElementById('theme-btn');const bt=document.getElementById('theme-btn-top');
+  if(b)b.textContent=lbl;if(bt)bt.textContent=icon;
+  setTimeout(()=>{renderDonut(calc());renderBar(calc());renderDebtChart(calc());},60);
+}
+window.toggleTheme=()=>{themeMode=document.body.classList.contains('light-mode')?'dark':'light';localStorage.setItem('hb-theme',themeMode);applyTheme();};
+window.setTheme=mode=>{themeMode=mode;localStorage.setItem('hb-theme',mode);applyTheme();};
+const saved=localStorage.getItem('hb-theme');themeMode=saved||'auto';applyTheme();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(themeMode==='auto')applyTheme();});
+
+// ── Firebase ─────────────────────────────────────────────────────────────────
+async function initFS(){
+  try{
+    const snap=await getDoc(DOC);
+    if(snap.exists())state={...state,...snap.data()};
+    else await setDoc(DOC,state);
+    document.getElementById('sync-status').style.display='inline-flex';
+    onSnapshot(DOC,s=>{if(s.exists()){state={...state,...s.data()};renderAll();}});
+    renderAll();
+  }catch(e){console.warn('Firebase offline:',e);renderAll();}
+}
+async function push(){try{await setDoc(DOC,state);}catch(e){}renderAll();}
+
+// ── Inputs ───────────────────────────────────────────────────────────────────
+window.onCoreInput=()=>{
+  state.income1=parseFloat(document.getElementById('p1-income').value)||0;
+  state.income2=parseFloat(document.getElementById('p2-income').value)||0;
+  state.payday1=parseInt(document.getElementById('p1-payday').value)||0;
+  state.payday2=parseInt(document.getElementById('p2-payday').value)||0;
+  state.bal1=parseFloat(document.getElementById('bal1').value)||0;
+  state.bal2=parseFloat(document.getElementById('bal2').value)||0;
+  push();
+};
+window.saveName=()=>{state.name1=document.getElementById('name1-input').value||'Person 1';state.name2=document.getElementById('name2-input').value||'Person 2';push();};
+
+// ── Month archive ────────────────────────────────────────────────────────────
+window.lockMonth=async()=>{
+  const c=calc();
+  const now=new Date();
+  const label=now.toLocaleString('en-GB',{month:'long',year:'numeric'});
+  const notes=document.getElementById('month-notes').value.trim();
+  const snap={
+    label,date:now.toISOString(),notes,
+    income1:state.income1,income2:state.income2,
+    extra1:sumAmt(state.extra1),extra2:sumAmt(state.extra2),
+    totalIn:c.inc,totalOut:c.outs,freePot:c.free,
+    save1:c.save1,save2:c.save2,
+    bank:c.bank,totalDebt:c.totalDebt,
+    slider:state.saveSlider,
+    debts:(state.debts||[]).map(d=>({name:d.name,balance:d.balance,apr:d.apr,person:d.person}))
+  };
+  state.history=[snap,...(state.history||[])];
+  state.extra1=[];state.extra2=[];
+  document.getElementById('month-notes').value='';
+  await push();showToast('Month locked to history!');
+};
+window.resetMonth=async()=>{state.extra1=[];state.extra2=[];await push();showToast('Fresh month started!');};
+
+// ── Calc ─────────────────────────────────────────────────────────────────────
+function sumAmt(arr){return(arr||[]).reduce((s,x)=>s+(parseFloat(x.amt)||0),0);}
+function calc(){
+  const extra1=sumAmt(state.extra1),extra2=sumAmt(state.extra2);
+  const tInc1=(parseFloat(state.income1)||0)+extra1;
+  const tInc2=(parseFloat(state.income2)||0)+extra2;
+  const inc=tInc1+tInc2;
+  const share1=inc>0?tInc1/inc:0.5,share2=1-share1;
+  const shared=sumAmt(state.sharedBills);
+  const pers1=sumAmt(state.personal1),pers2=sumAmt(state.personal2);
+  let ownMin1=0,ownMin2=0,jointMin=0,owe1=0,owe2=0,jointBal=0,totalMin=0,totalDebt=0;
+  (state.debts||[]).forEach(d=>{
+    const min=parseFloat(d.min)||0,bal=parseFloat(d.balance)||0;
+    totalMin+=min;totalDebt+=bal;
+    const pid=String(d.person);
+    if(pid==='1'){ownMin1+=min;owe1+=bal;}
+    else if(pid==='2'){ownMin2+=min;owe2+=bal;}
+    else{jointMin+=min;jointBal+=bal;}
+  });
+  const debtMin1=ownMin1+jointMin*share1,debtMin2=ownMin2+jointMin*share2;
+  const owesTotal1=owe1+jointBal*share1,owesTotal2=owe2+jointBal*share2;
+  const sc1=shared*share1,sc2=shared*share2;
+  const disp1=Math.max(0,tInc1-sc1-pers1-debtMin1);
+  const disp2=Math.max(0,tInc2-sc2-pers2-debtMin2);
+  const sl=(parseFloat(state.saveSlider)||0)/100;
+  const hasDebt1=owesTotal1>0,hasDebt2=owesTotal2>0;
+  const comm1=disp1*sl,comm2=disp2*sl;
+  const save1=Math.round(hasDebt1?comm1*.6:comm1),over1=Math.round(hasDebt1?comm1*.4:0),spend1=Math.round(Math.max(0,disp1-comm1));
+  const save2=Math.round(hasDebt2?comm2*.6:comm2),over2=Math.round(hasDebt2?comm2*.4:0),spend2=Math.round(Math.max(0,disp2-comm2));
+  const outs=shared+pers1+pers2+totalMin;
+  const free=Math.max(0,inc-outs);
+  const bank=(parseFloat(state.bal1)||0)+(parseFloat(state.bal2)||0);
+  return{extra1,extra2,tInc1,tInc2,inc,share1,share2,shared,pers1,pers2,sc1,sc2,
+    debtMin1,debtMin2,owesTotal1,owesTotal2,disp1,disp2,
+    save1,over1,spend1,save2,over2,spend2,
+    savingsAmt:save1+save2,debtOver:over1+over2,spending:spend1+spend2,
+    outs,free,bank,totalMin,totalDebt};
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const fmt=n=>'£'+Math.round(n||0).toLocaleString('en-GB');
+const f=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+const isLight=()=>document.body.classList.contains('light-mode');
+const gridC=()=>isLight()?'rgba(0,0,0,.06)':'rgba(30,45,69,.5)';
+const tickC=()=>isLight()?'#64748b':'#94a3b8';
+const cardBg=()=>isLight()?'#ffffff':'#111827';
+const sync=(id,val)=>{const el=document.getElementById(id);if(el&&document.activeElement!==el)el.value=val||'';};
+
+// ── Render all ───────────────────────────────────────────────────────────────
+function renderAll(){
+  const c=calc();
+  const N1=state.name1||'Person 1',N2=state.name2||'Person 2';
+  sync('p1-income',state.income1);sync('p2-income',state.income2);
+  sync('p1-payday',state.payday1);sync('p2-payday',state.payday2);
+  sync('bal1',state.bal1);sync('bal2',state.bal2);
+  sync('name1-input',state.name1);sync('name2-input',state.name2);
+  f('p1-label',N1+' base pay');f('p2-label',N2+' base pay');
+  f('bal1-label',N1+' balance');f('bal2-label',N2+' balance');
+  ['ptab1','etab1'].forEach(id=>f(id,N1));
+  ['ptab2','etab2'].forEach(id=>f(id,N2));
+  // Dashboard
+  f('d-income',fmt(c.inc));
+  f('d-income-sub','pay '+fmt(c.inc-c.extra1-c.extra2)+' + extras '+fmt(c.extra1+c.extra2));
+  f('d-out',fmt(c.outs));f('d-free',fmt(c.free));f('d-bank',fmt(c.bank));
+  // Payday
+  renderPaydayStrip(N1,N2);
+  // Slider
+  const sl=parseFloat(state.saveSlider)||0;
+  const slEl=document.getElementById('save-slider');
+  if(slEl&&document.activeElement!==slEl)slEl.value=sl;
+  const slLbls=['😌 Relaxed','⚡ Easy','⚖️ Balanced','📈 Strong','🔥 Aggressive'];
+  f('slider-label',slLbls[Math.min(4,Math.floor(sl/21))]);
+  f('slider-pct',sl+'%');
+  renderPersonCols(c,N1,N2);
+  renderSavingsCols(c,N1,N2);
+  renderDebtSummary(c,N1,N2);
+  generateSavingsAdvice(c,sl);
+  renderExtraList();renderBillsTable();renderPersonalTable();
+  renderDebtList(N1,N2);renderDebtUpdateSelect();
+  renderBudgetList();renderSpendLog();
+  renderGoals(c);renderCalendar();renderHistory();
+  renderDonut(c);renderBar(c);renderDebtChart(c);
+}
+
+// ── Payday countdown ─────────────────────────────────────────────────────────
+function renderPaydayStrip(N1,N2){
+  const el=document.getElementById('payday-strip');if(!el)return;
+  const today=new Date();const d=today.getDate();
+  const countdown=(payday)=>{
+    if(!payday)return null;
+    let days=payday-d;
+    if(days<0){const dim=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();days=dim-d+payday;}
+    return days===0?'TODAY':days===1?'tomorrow':`in ${days} days`;
+  };
+  const c1=countdown(state.payday1),c2=countdown(state.payday2);
+  const card=(name,color,inc,cd,pday)=>!pday?'':`
+    <div class="payday-card">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${name}'s payday</div>
+      <div style="font-size:20px;font-weight:700;color:${color}">${cd}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">${fmt(inc)} expected · day ${pday}</div>
+    </div>`;
+  el.innerHTML=card(N1,'var(--blue2)',state.income1,c1,state.payday1)+card(N2,'var(--em2)',state.income2,c2,state.payday2);
+}
+
+// ── Person columns ────────────────────────────────────────────────────────────
+const avatar=(name,color)=>`<div class="pc-avatar" style="background:${color}">${(name||'?').charAt(0).toUpperCase()}</div>`;
+function renderPersonCols(c,N1,N2){
+  const col=(name,color,tInc,sc,pers,dmin,disp,owes,bal)=>`
+    <div class="person-col">
+      <div class="pc-head">${avatar(name,color)}<span style="font-weight:700;font-size:15px">${name}</span></div>
+      <div class="pc-row"><span class="lbl">Money in</span><span style="font-weight:700;color:var(--blue2)">${fmt(tInc)}</span></div>
+      <div class="pc-row"><span class="lbl">Share of shared bills</span><span>${fmt(sc)}</span></div>
+      <div class="pc-row"><span class="lbl">Personal bills</span><span>${fmt(pers)}</span></div>
+      <div class="pc-row"><span class="lbl">Debt minimums</span><span>${fmt(dmin)}</span></div>
+      <div class="pc-row"><span class="lbl" style="color:var(--text);font-weight:600">Spare cash</span><span style="font-weight:700;color:var(--em2)">${fmt(disp)}</span></div>
+      <div class="pc-row"><span class="lbl">Total owed</span><span style="color:${owes>0?'#fca5a5':'var(--muted)'}">${fmt(owes)}</span></div>
+      <div class="pc-row"><span class="lbl">Bank balance</span><span style="color:var(--purple)">${fmt(bal)}</span></div>
+    </div>`;
+  document.getElementById('person-cols').innerHTML=
+    col(N1,'#3b82f6',c.tInc1,c.sc1,c.pers1,c.debtMin1,c.disp1,c.owesTotal1,parseFloat(state.bal1)||0)+
+    col(N2,'#10b981',c.tInc2,c.sc2,c.pers2,c.debtMin2,c.disp2,c.owesTotal2,parseFloat(state.bal2)||0);
+}
+function renderSavingsCols(c,N1,N2){
+  const col=(name,color,disp,save,over,spend)=>`
+    <div class="person-col">
+      <div class="pc-head">${avatar(name,color)}<span style="font-weight:700;font-size:15px">${name}</span></div>
+      <div class="pc-row"><span class="lbl">Spare cash</span><span style="font-weight:700">${fmt(disp)}</span></div>
+      <div class="pc-row"><span class="lbl">→ To savings</span><span style="font-weight:700;color:var(--em2)">${fmt(save)}</span></div>
+      <div class="pc-row"><span class="lbl">→ Extra debt repayment</span><span style="color:var(--amber)">${fmt(over)}</span></div>
+      <div class="pc-row"><span class="lbl">→ Free to spend</span><span>${fmt(spend)}</span></div>
+    </div>`;
+  document.getElementById('savings-cols').innerHTML=
+    col(N1,'#3b82f6',c.disp1,c.save1,c.over1,c.spend1)+
+    col(N2,'#10b981',c.disp2,c.save2,c.over2,c.spend2);
+}
+function renderDebtSummary(c,N1,N2){
+  const el=document.getElementById('debt-summary-cols');if(!el)return;
+  el.innerHTML=`
+    <div class="card card-sm"><div class="metric-label">${N1} owes</div><div class="metric-val" style="color:var(--blue2)">${fmt(c.owesTotal1)}</div><div class="metric-sub">incl. joint share</div></div>
+    <div class="card card-sm"><div class="metric-label">${N2} owes</div><div class="metric-val" style="color:var(--em2)">${fmt(c.owesTotal2)}</div><div class="metric-sub">incl. joint share</div></div>
+    <div class="card card-sm"><div class="metric-label">Total household debt</div><div class="metric-val" style="color:var(--red)">${fmt(c.totalDebt)}</div><div class="metric-sub">${fmt(c.totalMin)}/mo minimums</div></div>`;
+}
+
+// ── Savings advice ────────────────────────────────────────────────────────────
+function generateSavingsAdvice(c,pct){
+  const box=document.getElementById('savings-ai-box');if(!box)return;
+  const N1=state.name1||'Person 1',N2=state.name2||'Person 2';
+  if(c.inc<=0){box.textContent='Enter your income on the Income & Bills tab to see personalised advice.';return;}
+  const cs=c.save1+c.save2,rate=c.inc>0?Math.round((cs/c.inc)*100):0;
+  let lead=pct<20?`At a relaxed pace you're together saving ${fmt(cs)}/mo — gentle but keeps the habit going.`
+    :pct<45?`This balanced setting puts away ${fmt(cs)}/mo combined (~${rate}% of income) — a healthy, sustainable rate.`
+    :pct<70?`You're pushing hard: ${fmt(cs)}/mo (~${rate}%). Make sure there's still breathing room so it sticks.`
+    :`Aggressive — ${fmt(cs)}/mo, ~${rate}% of income. Great for hitting a target fast; check it's realistic monthly.`;
+  let split=c.disp1>0&&c.disp2>0
+    ?` ${N1} puts in ${fmt(c.save1)}, ${N2} puts in ${fmt(c.save2)} — different amounts is right when your incomes differ.`
+    :c.disp1<=0||c.disp2<=0?` One of you has little spare after bills — saving is falling mostly on one person. Worth reviewing the shared bill split.`:'';
+  let tail=c.totalDebt>0&&c.debtOver>0?` You're also throwing ${fmt(c.debtOver)} at debt overpayments — see the Debt Tracker for which to hit first.`
+    :c.totalDebt>0&&pct<30?` With ${fmt(c.totalDebt)} of debt outstanding, nudging the slider up will clear it meaningfully faster.`:'';
+  let runway=c.bank>0&&cs>0&&c.bank<c.outs*3?` Combined balance of ${fmt(c.bank)} is below 3 months of bills — build that buffer before locking too much away.`:'';
+  // Goals tip
+  const gl=state.goals||[];
+  if(gl.length){
+    const nearest=gl.slice().sort((a,b)=>{ const ra=(parseFloat(a.target)-parseFloat(a.saved))/(parseFloat(a.monthly)||1),rb=(parseFloat(b.target)-parseFloat(b.saved))/(parseFloat(b.monthly)||1);return ra-rb;})[0];
+    const months=nearest?Math.ceil((parseFloat(nearest.target)-parseFloat(nearest.saved))/(parseFloat(nearest.monthly)||1)):0;
+    if(months>0)tail+=` Your nearest goal (${nearest.name}) is ~${months} months away at current contributions.`;
+  }
+  box.textContent=lead+split+tail+runway;
+}
+
+// ── Spend tracker ─────────────────────────────────────────────────────────────
+window.confirmBudget=async()=>{
+  const cat=document.getElementById('budget-cat').value;
+  const amt=parseFloat(document.getElementById('budget-amt').value)||0;
+  if(!amt){showToast('Enter a budget amount');return;}
+  state.budgets=state.budgets||[];
+  const existing=state.budgets.findIndex(b=>b.cat===cat);
+  if(existing>=0)state.budgets[existing].amt=amt;
+  else state.budgets.push({cat,amt});
+  document.getElementById('budget-amt').value='';
+  hideForm('add-budget-form');
+  await push();showToast('Budget set!');
+};
+window.logSpend=async()=>{
+  const desc=document.getElementById('spend-desc').value.trim();
+  const cat=document.getElementById('spend-cat').value;
+  const amt=parseFloat(document.getElementById('spend-amt').value)||0;
+  if(!amt){showToast('Enter an amount');return;}
+  state.spends=state.spends||[];
+  state.spends.push({desc:desc||cat,cat,amt,date:new Date().toISOString()});
+  document.getElementById('spend-desc').value='';
+  document.getElementById('spend-amt').value='';
+  await push();showToast('Logged!');
+};
+function renderBudgetList(){
+  const el=document.getElementById('budget-list');if(!el)return;
+  const budgets=state.budgets||[];
+  if(!budgets.length){el.innerHTML='<div class="empty-state">Set a budget for a category to start tracking</div>';return;}
+  el.innerHTML=budgets.map((b,i)=>{
+    const spent=(state.spends||[]).filter(s=>s.cat===b.cat).reduce((s,x)=>s+(parseFloat(x.amt)||0),0);
+    const pct=Math.min(100,b.amt>0?Math.round((spent/b.amt)*100):0);
+    const over=spent>b.amt;
+    const color=over?'var(--red)':pct>75?'var(--amber)':'var(--emerald)';
+    return `<div class="budget-row">
+      <div style="width:110px;font-size:13px;font-weight:600">${b.cat}</div>
+      <div class="budget-bar-wrap"><div class="budget-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div style="width:130px;text-align:right;font-size:12px">
+        <span style="color:${over?'var(--red)':'var(--text)'};font-weight:700">${fmt(spent)}</span>
+        <span style="color:var(--muted)"> / ${fmt(b.amt)}</span>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="removeBudget(${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+window.removeBudget=async i=>{state.budgets.splice(i,1);await push();};
+function renderSpendLog(){
+  const el=document.getElementById('spend-log');if(!el)return;
+  const spends=(state.spends||[]).slice(-20).reverse();
+  if(!spends.length){el.innerHTML='<div class="empty-state">No purchases logged yet</div>';return;}
+  el.innerHTML='<h2 style="margin-bottom:10px">Recent purchases</h2>'+spends.map((s,ri)=>{
+    const i=(state.spends||[]).length-1-ri;
+    const d=new Date(s.date);
+    const ds=d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+    return `<div class="list-row"><span><span style="font-weight:600">${s.desc}</span> <span class="tag tag-shared" style="margin-left:6px">${s.cat}</span></span><span style="display:flex;align-items:center;gap:10px"><span style="color:var(--muted);font-size:11px">${ds}</span><span style="font-weight:700;color:var(--red)">${fmt(s.amt)}</span><button class="btn btn-danger btn-sm" onclick="removeSpend(${i})">✕</button></span></div>`;
+  }).join('');
+}
+window.removeSpend=async i=>{(state.spends||[]).splice(i,1);await push();};
+
+// ── Goals ─────────────────────────────────────────────────────────────────────
+window.confirmGoal=async()=>{
+  const name=document.getElementById('goal-name').value.trim();
+  const target=parseFloat(document.getElementById('goal-target').value)||0;
+  const saved=parseFloat(document.getElementById('goal-saved').value)||0;
+  const monthly=parseFloat(document.getElementById('goal-monthly').value)||0;
+  if(!name||!target){showToast('Enter a name and target');return;}
+  state.goals=state.goals||[];
+  state.goals.push({name,target,saved,monthly});
+  ['goal-name','goal-target','goal-saved','goal-monthly'].forEach(id=>document.getElementById(id).value='');
+  hideForm('add-goal-form');
+  await push();showToast('Goal added!');
+};
+window.removeGoal=async i=>{(state.goals||[]).splice(i,1);await push();};
+window.contributeGoal=async(i,amt)=>{
+  const g=state.goals[i];if(!g)return;
+  g.saved=Math.min(parseFloat(g.target)||0,(parseFloat(g.saved)||0)+amt);
+  await push();showToast('Contribution added!');
+};
+function renderGoals(c){
+  const el=document.getElementById('goals-list');if(!el)return;
+  const goals=state.goals||[];
+  if(!goals.length){el.innerHTML='<div class="empty-state">No goals yet — add one above</div>';return;}
+  const colors=['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899'];
+  el.innerHTML=goals.map((g,i)=>{
+    const target=parseFloat(g.target)||1;
+    const saved=parseFloat(g.saved)||0;
+    const monthly=parseFloat(g.monthly)||0;
+    const pct=Math.min(100,Math.round((saved/target)*100));
+    const remaining=Math.max(0,target-saved);
+    const months=monthly>0?Math.ceil(remaining/monthly):null;
+    const color=colors[i%colors.length];
+    return `<div class="goal-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div>
+          <div style="font-weight:700;font-size:15px">${g.name}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Target: ${fmt(target)} · Saved: ${fmt(saved)} · Monthly: ${fmt(monthly)}</div>
+        </div>
+        <div style="text-align:right">
+          <span class="badge" style="background:rgba(59,130,246,.15);color:${color}">${pct}%</span>
+          ${months?`<div style="font-size:11px;color:var(--muted);margin-top:4px">~${months} months</div>`:''}
+        </div>
+      </div>
+      <div class="goal-bar"><div class="goal-fill" style="width:${pct}%;background:linear-gradient(90deg,${color},${color}aa)"></div></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btn-success btn-sm" onclick="contributeGoal(${i},${monthly||50})">+ ${fmt(monthly||50)}</button>
+        <button class="btn btn-ghost btn-sm" onclick="removeGoal(${i})">Remove</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Bill Calendar ─────────────────────────────────────────────────────────────
+window.changeCalMonth=delta=>{calOffset+=delta;renderCalendar();};
+function renderCalendar(){
+  const hEl=document.getElementById('cal-header');const bEl=document.getElementById('cal-body');const uEl=document.getElementById('cal-unscheduled');const lEl=document.getElementById('cal-month-label');
+  if(!hEl||!bEl)return;
+  const now=new Date();
+  const target=new Date(now.getFullYear(),now.getMonth()+calOffset,1);
+  const year=target.getFullYear(),month=target.getMonth();
+  f('cal-month-label',target.toLocaleString('en-GB',{month:'long',year:'numeric'}));
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const startDay=new Date(year,month,1).getDay()||7; // Mon=1
+  const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  hEl.innerHTML=dayNames.map(d=>`<div class="cal-header">${d}</div>`).join('');
+  // Build bill map
+  const billMap={};
+  (state.sharedBills||[]).forEach(b=>{if(b.day){const k=parseInt(b.day);if(!billMap[k])billMap[k]=[];billMap[k].push({name:b.name,amt:b.amt,color:'var(--blue2)'});}});
+  // Payday dots
+  if(state.payday1){const k=state.payday1;if(!billMap[k])billMap[k]=[];billMap[k].push({name:(state.name1||'P1')+' payday',amt:state.income1,color:'var(--em2)',isPayday:true});}
+  if(state.payday2){const k=state.payday2;if(!billMap[k])billMap[k]=[];billMap[k].push({name:(state.name2||'P2')+' payday',amt:state.income2,color:'var(--em2)',isPayday:true});}
+  const cells=[];
+  for(let i=1;i<startDay;i++)cells.push('<div></div>');
+  const todayD=calOffset===0?now.getDate():-1;
+  for(let d=1;d<=daysInMonth;d++){
+    const bills=billMap[d]||[];
+    const isToday=d===todayD;
+    const hasBill=bills.some(b=>!b.isPayday);
+    const hasPayday=bills.some(b=>b.isPayday);
+    const border=isToday?'border-color:var(--amber)':hasBill?'border-color:var(--blue)':'';
+    const bg=isToday?'background:rgba(245,158,11,.08)':'';
+    const dots=bills.slice(0,3).map(b=>`<div class="bill-dot" style="color:${b.color}">${b.isPayday?'💰':''} ${b.name}: ${fmt(b.amt)}</div>`).join('');
+    cells.push(`<div class="cal-cell" style="${border};${bg}"><div class="day-num" style="${isToday?'color:var(--amber)':''}">${d}</div>${dots}</div>`);
+  }
+  bEl.innerHTML=cells.join('');
+  const unscheduled=(state.sharedBills||[]).filter(b=>!b.day);
+  uEl.innerHTML=unscheduled.length?'<h2 style="margin-bottom:8px">Bills without a set due day</h2>'+unscheduled.map(b=>`<div class="list-row"><span>${b.name}</span><span style="font-weight:700">${fmt(b.amt)}</span></div>`).join(''):'';
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+function renderHistory(){
+  const el=document.getElementById('history-list');if(!el)return;
+  const h=state.history||[];
+  if(!h.length){el.innerHTML='<div class="empty-state">No history yet — lock this month from Settings when you\'re done</div>';return;}
+  el.innerHTML=h.map((m,i)=>`
+    <div class="history-card" onclick="toggleHistory(${i})">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div class="history-month">${m.label}</div><div class="history-meta">In: ${fmt(m.totalIn)} · Out: ${fmt(m.totalOut)} · Free pot: ${fmt(m.freePot)}</div></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="color:var(--em2);font-weight:700">${fmt((m.save1||0)+(m.save2||0))}</span>
+          <span style="color:var(--muted);font-size:12px">saved</span>
+          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteHistory(${i})">✕</button>
+        </div>
+      </div>
+      <div id="hist-detail-${i}" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+        <div class="grid3" style="gap:10px;margin-bottom:10px">
+          <div><div class="metric-label">Base pay in</div><div style="font-weight:700">${fmt((m.income1||0)+(m.income2||0))}</div></div>
+          <div><div class="metric-label">Extras</div><div style="font-weight:700">${fmt((m.extra1||0)+(m.extra2||0))}</div></div>
+          <div><div class="metric-label">Total debt</div><div style="font-weight:700;color:var(--red)">${fmt(m.totalDebt||0)}</div></div>
+        </div>
+        ${m.notes?`<div style="background:var(--card2);border-radius:8px;padding:10px;font-size:13px;color:var(--muted);margin-bottom:8px">📝 ${m.notes}</div>`:''}
+        ${(m.debts||[]).length?'<div style="font-size:11px;color:var(--muted)">'+(m.debts||[]).map(d=>`${d.name}: ${fmt(d.balance)} @ ${d.apr}%`).join(' · ')+'</div>':''}
+      </div>
+    </div>`).join('');
+}
+window.toggleHistory=i=>{const el=document.getElementById(`hist-detail-${i}`);if(el)el.style.display=el.style.display==='none'?'block':'none';};
+window.deleteHistory=async i=>{(state.history||[]).splice(i,1);await push();};
+
+// ── Bills table ───────────────────────────────────────────────────────────────
+function renderBillsTable(){
+  const tb=document.getElementById('shared-bills-body');if(!tb)return;
+  if(!(state.sharedBills||[]).length){tb.innerHTML='<tr><td colspan="5" class="empty-state">No shared bills yet</td></tr>';return;}
+  tb.innerHTML=state.sharedBills.map((b,i)=>`<tr><td>${b.name}</td><td><span class="tag tag-shared">${b.cat}</span></td><td style="color:var(--muted)">${b.day?'Day '+b.day:'—'}</td><td style="font-weight:700">${fmt(b.amt)}</td><td><button class="btn btn-danger btn-sm" onclick="removeBill(${i})">✕</button></td></tr>`).join('');
+}
+function renderPersonalTable(){
+  const bills=currentPerson===1?(state.personal1||[]):(state.personal2||[]);
+  const tb=document.getElementById('personal-bills-body');if(!tb)return;
+  if(!bills.length){tb.innerHTML='<tr><td colspan="3" class="empty-state">No personal bills</td></tr>';return;}
+  tb.innerHTML=bills.map((b,i)=>`<tr><td>${b.name}</td><td style="font-weight:700">${fmt(b.amt)}</td><td><button class="btn btn-danger btn-sm" onclick="removePersonal(${i})">✕</button></td></tr>`).join('');
+}
+function renderExtraList(){
+  const arr=extraPerson===1?(state.extra1||[]):(state.extra2||[]);
+  const el=document.getElementById('extra-list');if(!el)return;
+  if(!arr.length){el.innerHTML='<div class="empty-state">No extra income logged this month</div>';return;}
+  el.innerHTML=arr.map((x,i)=>`<div class="list-row"><span>${x.name}</span><span style="display:flex;align-items:center;gap:10px"><span style="font-weight:700;color:var(--em2)">${fmt(x.amt)}</span><button class="btn btn-danger btn-sm" onclick="removeExtra(${i})">✕</button></span></div>`).join('');
+}
+
+// ── Debt list & update ────────────────────────────────────────────────────────
+function renderDebtList(N1,N2){
+  const el=document.getElementById('debt-list');if(!el)return;
+  if(!(state.debts||[]).length){el.innerHTML='<div class="empty-state">No debts — or you\'re debt free! 🎉</div>';return;}
+  const tagFor=p=>{const s=String(p);return s==='1'?`<span class="tag tag-p1">${N1}</span>`:s==='2'?`<span class="tag tag-p2">${N2}</span>`:`<span class="tag tag-shared">Joint</span>`;};
+  el.innerHTML=state.debts.map((d,i)=>`
+    <div class="debt-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><div style="font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px">${d.name} ${tagFor(d.person)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">APR: <span style="color:var(--amber)">${d.apr}%</span> · Min: ${fmt(d.min)}/mo</div></div>
+        <div style="text-align:right">
+          <div style="font-size:22px;font-weight:700;color:var(--red)">${fmt(d.balance)}</div>
+          <button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="removeDebt(${i})">Remove</button>
+        </div>
+      </div>
+      <div class="progress-wrap"><div class="progress-fill" style="width:100%;background:${parseFloat(d.apr)>20?'var(--red)':parseFloat(d.apr)>10?'var(--amber)':'var(--em2)'}"></div></div>
+    </div>`).join('');
+}
+function renderDebtUpdateSelect(){
+  const sel=document.getElementById('debt-update-select');if(!sel)return;
+  const panel=document.getElementById('debt-update-panel');
+  const debts=state.debts||[];
+  if(panel)panel.style.display=debts.length?'block':'none';
+  sel.innerHTML='<option value="">— pick a debt —</option>'+debts.map((d,i)=>`<option value="${i}">${d.name} (${fmt(d.balance)})</option>`).join('');
+}
+window.updateDebtBalance=async()=>{
+  const sel=document.getElementById('debt-update-select');
+  const val=document.getElementById('debt-update-val');
+  const i=parseInt(sel.value);
+  const newBal=parseFloat(val.value)||0;
+  if(isNaN(i)||!state.debts[i]){showToast('Pick a debt first');return;}
+  state.debts[i].balance=newBal;
+  sel.value='';val.value='';
+  await push();showToast('Balance updated!');
+};
+
+// ── Debt payoff simulation ────────────────────────────────────────────────────
+function simulatePayoff(debts,extra,method){
+  if(!debts.length)return{months:0,interest:0,order:[],neverClears:false};
+  let bals=debts.map(d=>({name:d.name,apr:parseFloat(d.apr)||0,min:parseFloat(d.min)||0,balance:parseFloat(d.balance)||0}));
+  const sortFn=method==='avalanche'?(a,b)=>b.apr-a.apr:(a,b)=>a.balance-b.balance;
+  const order=[...bals].sort(sortFn).map(d=>d.name);
+  let interest=0,months=0;
+  while(bals.some(d=>d.balance>0.5)){
+    months++;if(months>600)return{months:600,interest:Math.round(interest),order,neverClears:true};
+    bals.forEach(d=>{if(d.balance>0){const i=d.balance*(d.apr/100/12);interest+=i;d.balance+=i;}});
+    bals.forEach(d=>{if(d.balance>0)d.balance=Math.max(0,d.balance-Math.min(d.min,d.balance));});
+    let pool=extra;
+    for(const d of bals.filter(d=>d.balance>0.5).sort(sortFn)){if(pool<=0)break;const pay=Math.min(pool,d.balance);d.balance-=pay;pool-=pay;}
+  }
+  return{months,interest:Math.round(interest),order,neverClears:false};
+}
+window.runDebtAnalysis=()=>{
+  const box=document.getElementById('debt-ai-box');
+  if(!(state.debts||[]).length){showToast('Add some debts first!');return;}
+  const c=calc();const N1=state.name1||'Person 1',N2=state.name2||'Person 2';const out=[];
+  [[1,N1,c.over1],[2,N2,c.over2]].forEach(([pid,name,extra])=>{
+    const mine=(state.debts||[]).filter(d=>String(d.person)===String(pid));if(!mine.length)return;
+    const totalBal=mine.reduce((s,d)=>s+(parseFloat(d.balance)||0),0);
+    if(mine.length===1){
+      const av=simulatePayoff(mine,extra,'avalanche');
+      out.push(`${name}: one debt (${mine[0].name}, ${fmt(totalBal)} @ ${mine[0].apr}%). Paying ${fmt((parseFloat(mine[0].min)||0)+extra)}/mo clears it in ~${av.neverClears?'50+ years — increase the minimum':av.months+' months'}.`);
+      return;
+    }
+    const av=simulatePayoff(mine,extra,'avalanche'),sn=simulatePayoff(mine,extra,'snowball');
+    const saving=sn.interest-av.interest;
+    let rec=saving>50?`Avalanche wins — clear ${av.order[0]} first (highest APR). Saves ~${fmt(saving)} in interest, debt-free in ~${av.months} months.`
+      :saving<-1?`Snowball is better — start with ${sn.order[0]} for fast wins. Debt-free in ~${sn.months} months.`
+      :`Either works — tiny interest difference. Snowball (${sn.order[0]}) for motivation; avalanche (${av.order[0]}) marginally cheaper. Done in ~${av.months} months.`;
+    out.push(`${name} (${fmt(totalBal)}, ${fmt(extra)}/mo extra): ${rec}`);
+  });
+  const joint=(state.debts||[]).filter(d=>String(d.person)==='shared');
+  if(joint.length){const jb=joint.reduce((s,d)=>s+(parseFloat(d.balance)||0),0);out.push(`Joint: ${fmt(jb)} across ${joint.length} debt${joint.length>1?'s':''} — split ${Math.round(c.share1*100)}%/${Math.round(c.share2*100)}% by income share.`);}
+  box.textContent=out.length?out.join('  |  '):'Tag debts to a person, then Analyse again.';
+};
+
+// Charts
+function renderDonut(c){
+  const ctx=document.getElementById('donutChart');if(!ctx)return;
+  const N1=state.name1||'P1',N2=state.name2||'P2';
+  const cats={};
+  (state.sharedBills||[]).forEach(b=>cats[b.cat]=(cats[b.cat]||0)+(parseFloat(b.amt)||0));
+  if(c.pers1>0)cats['Personal ('+N1+')']=c.pers1;
+  if(c.pers2>0)cats['Personal ('+N2+')']=c.pers2;
+  if(c.totalMin>0)cats['Debt payments']=c.totalMin;
+  const keys=Object.keys(cats),vals=keys.map(k=>cats[k]);
+  const colors=['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
+  if(ch.donut)ch.donut.destroy();if(!vals.length)return;
+  ch.donut=new Chart(ctx,{type:'doughnut',data:{labels:keys,datasets:[{data:vals,backgroundColor:colors.slice(0,keys.length),borderWidth:2,borderColor:cardBg(),hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{callbacks:{label:(ct)=>' '+ct.label+': £'+Math.round(ct.parsed||0).toLocaleString('en-GB')}}}}});
+  document.getElementById('donut-legend').innerHTML=keys.map((k,i)=>`<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${colors[i]};flex-shrink:0"></span>${k}</span>`).join('');
+}
+function renderBar(c){
+  const ctx=document.getElementById('barChart');if(!ctx)return;
+  if(ch.bar)ch.bar.destroy();
+  ch.bar=new Chart(ctx,{type:'bar',data:{labels:['In','Outgoings','Savings','Spending'],datasets:[{data:[Math.round(c.inc||0),Math.round(c.outs||0),Math.round(c.savingsAmt||0),Math.round(c.spending||0)],backgroundColor:['#3b82f6','#ef4444','#10b981','#f59e0b'],borderRadius:4,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:(context)=>' £'+Math.round(context.parsed.y||0).toLocaleString('en-GB')}}},scales:{x:{grid:{display:false},ticks:{color:tickC(),font:{size:11}}},y:{grid:{color:gridC()},ticks:{color:tickC(),font:{size:11},callback:v=>'£'+Math.round(v||0).toLocaleString('en-GB')}}}}});
+}
+function renderDebtChart(c){
+  const ctx=document.getElementById('debtChart');if(!ctx)return;
+  if(ch.debt)ch.debt.destroy();if(!(state.debts||[]).length)return;
+  const extra=c.debtOver/Math.max(1,state.debts.length);
+  const colors=['#ef4444','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#3b82f6'];
+  const datasets=state.debts.map((d,i)=>{
+    const mr=(parseFloat(d.apr)||0)/100/12;let bal=parseFloat(d.balance)||0;
+    const data=[Math.round(bal)];
+    for(let m=1;m<=60;m++){bal=Math.max(0,bal*(1+mr)-((parseFloat(d.min)||0)+extra));data.push(Math.round(bal));}
+    return{label:d.name,data,borderColor:colors[i%6],backgroundColor:'transparent',borderWidth:2,pointRadius:0,tension:.4};
+  });
+  ch.debt=new Chart(ctx,{type:'line',data:{labels:Array.from({length:61},(_,i)=>i===0?'Now':i+'m'),datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:tickC(),font:{size:11},boxWidth:10}},tooltip:{callbacks:{label:(ct)=>' '+ct.dataset.label+': £'+Math.round(ct.parsed.y||0).toLocaleString('en-GB')}}},scales:{x:{grid:{color:gridC()},ticks:{color:tickC(),font:{size:10},maxTicksLimit:8}},y:{grid:{color:gridC()},ticks:{color:tickC(),font:{size:10},callback:v=>'£'+Math.round(v/1000)+'k'}}}}});
+}
+
+// Slider
+window.onSlider=val=>{
+  state.saveSlider=parseInt(val);
+  clearTimeout(sliderDebounce);sliderDebounce=setTimeout(()=>push(),600);
+  renderAll();
+};
+
+// Form helpers
+window.showForm=id=>document.getElementById(id).style.display='block';
+window.hideForm=id=>document.getElementById(id).style.display='none';
+
+// Extra income
+window.switchExtraPerson=n=>{extraPerson=n;document.getElementById('etab1').classList.toggle('active',n===1);document.getElementById('etab2').classList.toggle('active',n===2);renderExtraList();};
+window.confirmExtra=async()=>{
+  const name=document.getElementById('extra-name').value.trim();
+  const amt=parseFloat(document.getElementById('extra-amt').value)||0;
+  if(!name||!amt){showToast('Enter a name and amount');return;}
+  (extraPerson===1?state.extra1:state.extra2).push({name,amt});
+  document.getElementById('extra-name').value='';document.getElementById('extra-amt').value='';
+  hideForm('add-extra-form');await push();showToast('Income logged!');
+};
+window.removeExtra=async i=>{(extraPerson===1?state.extra1:state.extra2).splice(i,1);await push();};
+
+// Bills
+window.confirmBill=async()=>{
+  const name=document.getElementById('bill-name').value.trim();
+  const cat=document.getElementById('bill-cat').value;
+  const day=parseInt(document.getElementById('bill-day').value)||null;
+  const amt=parseFloat(document.getElementById('bill-amt').value)||0;
+  if(!name||!amt){showToast('Enter a name and amount');return;}
+  state.sharedBills.push({name,cat,day,amt});
+  ['bill-name','bill-day','bill-amt'].forEach(id=>document.getElementById(id).value='');
+  hideForm('add-bill-form');await push();showToast('Bill added!');
+};
+window.removeBill=async i=>{state.sharedBills.splice(i,1);await push();};
+window.switchPerson=n=>{currentPerson=n;document.getElementById('ptab1').classList.toggle('active',n===1);document.getElementById('ptab2').classList.toggle('active',n===2);renderPersonalTable();};
+window.confirmPersonal=async()=>{
+  const name=document.getElementById('pb-name').value.trim();
+  const amt=parseFloat(document.getElementById('pb-amt').value)||0;
+  if(!name||!amt){showToast('Enter a name and amount');return;}
+  (currentPerson===1?state.personal1:state.personal2).push({name,amt});
+  document.getElementById('pb-name').value='';document.getElementById('pb-amt').value='';
+  hideForm('add-personal-form');await push();showToast('Added!');
+};
+window.removePersonal=async i=>{(currentPerson===1?state.personal1:state.personal2).splice(i,1);await push();};
+
+// Debts
+window.confirmDebt=async()=>{
+  const name=document.getElementById('debt-name').value.trim();
+  const person=document.getElementById('debt-person').value;
+  const balance=parseFloat(document.getElementById('debt-balance').value)||0;
+  const apr=parseFloat(document.getElementById('debt-apr').value)||0;
+  const min=parseFloat(document.getElementById('debt-min').value)||0;
+  if(!name||!balance){showToast('Enter creditor name and balance');return;}
+  state.debts.push({name,person,balance,apr,min,originalBalance:balance});
+  ['debt-name','debt-balance','debt-apr','debt-min'].forEach(id=>document.getElementById(id).value='');
+  hideForm('add-debt-form');await push();showToast('Debt added!');
+};
+window.removeDebt=async i=>{state.debts.splice(i,1);await push();};
+
+// Nav
+window.goTo=page=>{
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  const map={dashboard:0,income:1,tracker:2,savings:3,goals:4,debts:5,calendar:6,history:7,settings:8};
+  if(map[page]!==undefined)document.querySelectorAll('.nav-item')[map[page]].classList.add('active');
+};
+window.showToast=msg=>{const t=document.getElementById('toast');t.textContent='✓ '+msg;t.style.display='block';setTimeout(()=>t.style.display='none',2500);};
+
+initFS();
+</script>
+</body>
+</html>
