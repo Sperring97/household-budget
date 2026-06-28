@@ -114,12 +114,23 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
 .goal-bar{height:10px;background:var(--border);border-radius:5px;overflow:hidden;margin:8px 0}
 .goal-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--em2));border-radius:5px;transition:width .5s}
 /* Calendar */
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:12px}
-.cal-cell{border-radius:6px;padding:6px 4px;text-align:center;font-size:11px;min-height:48px;background:var(--card2);border:1px solid var(--border);position:relative;transition:background .25s}
-.cal-cell.has-bill{border-color:var(--blue)}
-.cal-cell .day-num{font-weight:700;font-size:12px;color:var(--text);margin-bottom:2px}
-.cal-cell .bill-dot{font-size:9px;color:var(--blue2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cal-header{font-size:10px;color:var(--muted);text-align:center;font-weight:600;letter-spacing:.05em}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:8px}
+.cal-cell{border-radius:6px;padding:5px 2px 6px;text-align:center;background:var(--card2);border:1px solid var(--border);position:relative;transition:background .15s;cursor:pointer;min-width:0;overflow:hidden}
+.cal-cell:hover{border-color:var(--blue);background:rgba(59,130,246,.06)}
+.cal-cell.has-bill{border-color:rgba(59,130,246,.5)}
+.cal-cell.has-payday{border-color:rgba(16,185,129,.5)}
+.cal-cell.is-today{background:rgba(245,158,11,.08);border-color:var(--amber)}
+.cal-cell .day-num{font-weight:700;font-size:12px;color:var(--text);line-height:1.2;display:block}
+.cal-cell.is-today .day-num{color:var(--amber)}
+.cal-dots{display:flex;justify-content:center;gap:2px;margin-top:3px;flex-wrap:wrap;min-height:8px}
+.cal-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.cal-header{font-size:10px;color:var(--muted);text-align:center;font-weight:600;letter-spacing:.04em;padding:4px 0}
+/* Day detail sheet */
+.cal-sheet{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);border-radius:16px 16px 0 0;padding:20px;z-index:990;transform:translateY(100%);transition:transform .25s ease;max-height:60vh;overflow-y:auto}
+.cal-sheet.open{transform:translateY(0)}
+.cal-sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px}
+.cal-sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:989;display:none}
+.cal-sheet-overlay.open{display:block}
 /* Payday countdown */
 .payday-card{background:linear-gradient(135deg,rgba(59,130,246,.1),rgba(16,185,129,.08));border:1px solid rgba(59,130,246,.2);border-radius:12px;padding:16px}
 /* Spending tracker entry */
@@ -407,20 +418,29 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
     <!-- BILL CALENDAR -->
     <div class="page" id="page-calendar">
       <div class="section-title">Bill Calendar</div>
-      <div class="section-sub">See exactly which weeks are heavy — plan around the big ones</div>
+      <div class="section-sub">Tap any date to see what's due — coloured dots show bills and paydays</div>
       <div class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-          <h2 style="margin-bottom:0" id="cal-month-label">This month</h2>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-ghost btn-sm" onclick="changeCalMonth(-1)">‹ Prev</button>
-            <button class="btn btn-ghost btn-sm" onclick="changeCalMonth(1)">Next ›</button>
-          </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <button class="btn btn-ghost btn-sm" onclick="changeCalMonth(-1)">‹</button>
+          <h2 style="margin-bottom:0;font-size:14px;font-weight:700;color:var(--text);text-transform:none;letter-spacing:0" id="cal-month-label">This month</h2>
+          <button class="btn btn-ghost btn-sm" onclick="changeCalMonth(1)">›</button>
+        </div>
+        <!-- Legend -->
+        <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+          <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:var(--blue);display:inline-block"></span>Bill due</span>
+          <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:var(--em2);display:inline-block"></span>Payday</span>
+          <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:var(--amber);display:inline-block"></span>Today</span>
         </div>
         <div class="cal-grid" id="cal-header"></div>
         <div class="cal-grid" id="cal-body"></div>
-        <div style="margin-top:16px;font-size:12px;color:var(--muted)">Bills with a set due day appear on that date. Bills without a due day appear at the top of the list below.</div>
-        <div style="margin-top:12px" id="cal-unscheduled"></div>
+        <div style="margin-top:14px" id="cal-unscheduled"></div>
       </div>
+    </div>
+    <!-- Day detail bottom sheet -->
+    <div class="cal-sheet-overlay" id="cal-overlay" onclick="closeCalSheet()"></div>
+    <div class="cal-sheet" id="cal-sheet">
+      <div class="cal-sheet-handle"></div>
+      <div id="cal-sheet-content"></div>
     </div>
 
     <!-- HISTORY -->
@@ -916,43 +936,97 @@ function renderGoals(c){
 
 // ── Bill Calendar ─────────────────────────────────────────────────────────────
 window.changeCalMonth=delta=>{calOffset+=delta;renderCalendar();};
+// Build a map of day -> [{name,amt,color,isPayday}] for the calendar
+function buildBillMap(){
+  const N1=state.name1||'P1',N2=state.name2||'P2';
+  const map={};
+  const add=(k,entry)=>{if(!map[k])map[k]=[];map[k].push(entry);};
+  (state.sharedBills||[]).forEach(b=>{if(b.day)add(parseInt(b.day),{name:b.name,amt:b.amt,color:'var(--blue)',isPayday:false});});
+  (state.personal1||[]).forEach(b=>{if(b.day)add(parseInt(b.day),{name:b.name+' ('+N1+')',amt:b.amt,color:'var(--blue)',isPayday:false});});
+  (state.personal2||[]).forEach(b=>{if(b.day)add(parseInt(b.day),{name:b.name+' ('+N2+')',amt:b.amt,color:'var(--em2)',isPayday:false});});
+  if(state.payday1)add(parseInt(state.payday1),{name:N1+' payday',amt:state.income1,color:'var(--em2)',isPayday:true});
+  if(state.payday2)add(parseInt(state.payday2),{name:N2+' payday',amt:state.income2,color:'var(--em2)',isPayday:true});
+  return map;
+}
+let calBillMap={};
 function renderCalendar(){
-  const hEl=document.getElementById('cal-header');const bEl=document.getElementById('cal-body');const uEl=document.getElementById('cal-unscheduled');const lEl=document.getElementById('cal-month-label');
+  const hEl=document.getElementById('cal-header');
+  const bEl=document.getElementById('cal-body');
+  const uEl=document.getElementById('cal-unscheduled');
   if(!hEl||!bEl)return;
   const now=new Date();
   const target=new Date(now.getFullYear(),now.getMonth()+calOffset,1);
   const year=target.getFullYear(),month=target.getMonth();
   f('cal-month-label',target.toLocaleString('en-GB',{month:'long',year:'numeric'}));
   const daysInMonth=new Date(year,month+1,0).getDate();
-  const startDay=new Date(year,month,1).getDay()||7; // Mon=1
-  const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const startDay=new Date(year,month,1).getDay()||7;
+  calBillMap=buildBillMap();
+  // Day-of-week headers — abbreviated for mobile
+  const dayNames=['M','T','W','T','F','S','S'];
   hEl.innerHTML=dayNames.map(d=>`<div class="cal-header">${d}</div>`).join('');
-  // Build bill map
-  const billMap={};
-  (state.sharedBills||[]).forEach(b=>{if(b.day){const k=parseInt(b.day);if(!billMap[k])billMap[k]=[];billMap[k].push({name:b.name,amt:b.amt,color:'var(--blue2)'});}});
-  // Personal bills on calendar
-  (state.personal1||[]).forEach(b=>{if(b.day){const k=parseInt(b.day);if(!billMap[k])billMap[k]=[];billMap[k].push({name:b.name+' ('+(state.name1||'P1')+')',amt:b.amt,color:'var(--blue2)'});}});
-  (state.personal2||[]).forEach(b=>{if(b.day){const k=parseInt(b.day);if(!billMap[k])billMap[k]=[];billMap[k].push({name:b.name+' ('+(state.name2||'P2')+')',amt:b.amt,color:'var(--em2)'});}});
-  // Payday dots
-  if(state.payday1){const k=state.payday1;if(!billMap[k])billMap[k]=[];billMap[k].push({name:(state.name1||'P1')+' payday',amt:state.income1,color:'var(--em2)',isPayday:true});}
-  if(state.payday2){const k=state.payday2;if(!billMap[k])billMap[k]=[];billMap[k].push({name:(state.name2||'P2')+' payday',amt:state.income2,color:'var(--em2)',isPayday:true});}
+  const todayD=calOffset===0?now.getDate():-1;
   const cells=[];
   for(let i=1;i<startDay;i++)cells.push('<div></div>');
-  const todayD=calOffset===0?now.getDate():-1;
   for(let d=1;d<=daysInMonth;d++){
-    const bills=billMap[d]||[];
+    const entries=calBillMap[d]||[];
     const isToday=d===todayD;
-    const hasBill=bills.some(b=>!b.isPayday);
-    const hasPayday=bills.some(b=>b.isPayday);
-    const border=isToday?'border-color:var(--amber)':hasBill?'border-color:var(--blue)':'';
-    const bg=isToday?'background:rgba(245,158,11,.08)':'';
-    const dots=bills.slice(0,3).map(b=>`<div class="bill-dot" style="color:${b.color}">${b.isPayday?'💰':''} ${b.name}: ${fmt(b.amt)}</div>`).join('');
-    cells.push(`<div class="cal-cell" style="${border};${bg}"><div class="day-num" style="${isToday?'color:var(--amber)':''}">${d}</div>${dots}</div>`);
+    const hasBill=entries.some(e=>!e.isPayday);
+    const hasPayday=entries.some(e=>e.isPayday);
+    const cls=['cal-cell',isToday?'is-today':'',hasBill?'has-bill':'',hasPayday?'has-payday':''].filter(Boolean).join(' ');
+    // Max 4 dots shown, each coloured
+    const dots=entries.slice(0,4).map(e=>`<span class="cal-dot" style="background:${e.color}"></span>`).join('');
+    const overflow=entries.length>4?`<span style="font-size:8px;color:var(--muted)">+${entries.length-4}</span>`:'';
+    cells.push(`<div class="${cls}" onclick="openCalDay(${d},${year},${month})"><span class="day-num">${d}</span><div class="cal-dots">${dots}${overflow}</div></div>`);
   }
   bEl.innerHTML=cells.join('');
-  const unscheduled=(state.sharedBills||[]).filter(b=>!b.day);
-  uEl.innerHTML=unscheduled.length?'<h2 style="margin-bottom:8px">Bills without a set due day</h2>'+unscheduled.map(b=>`<div class="list-row"><span>${b.name}</span><span style="font-weight:700">${fmt(b.amt)}</span></div>`).join(''):'';
+  // Unscheduled bills
+  const unscheduled=[...(state.sharedBills||[]).filter(b=>!b.day),...(state.personal1||[]).filter(b=>!b.day),...(state.personal2||[]).filter(b=>!b.day)];
+  if(uEl){
+    uEl.innerHTML=unscheduled.length
+      ?'<h2 style="margin-bottom:8px">No due day set</h2>'+unscheduled.map(b=>`<div class="list-row"><span>${b.name}</span><span style="font-weight:700">${fmt(b.amt)}</span></div>`).join('')
+      :'';
+  }
 }
+window.openCalDay=(d,year,month)=>{
+  const entries=calBillMap[d]||[];
+  const sheet=document.getElementById('cal-sheet');
+  const overlay=document.getElementById('cal-overlay');
+  const content=document.getElementById('cal-sheet-content');
+  if(!sheet||!content)return;
+  const date=new Date(year,month,d);
+  const label=date.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+  if(!entries.length){
+    content.innerHTML=`<div style="font-weight:700;font-size:16px;margin-bottom:12px">${label}</div><div style="color:var(--muted);font-size:13px">Nothing due on this day.</div>`;
+  } else {
+    const rows=entries.map(e=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="width:10px;height:10px;border-radius:50%;background:${e.color};flex-shrink:0;display:inline-block"></span>
+          <div>
+            <div style="font-weight:600;font-size:13px">${e.isPayday?'💰 ':''} ${e.name}</div>
+            <div style="font-size:11px;color:var(--muted)">${e.isPayday?'Incoming':'Due today'}</div>
+          </div>
+        </div>
+        <span style="font-weight:700;font-size:14px;color:${e.isPayday?'var(--em2)':'var(--text)'}">${e.isPayday?'+':'−'}${fmt(e.amt)}</span>
+      </div>`).join('');
+    const total=entries.filter(e=>!e.isPayday).reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
+    const incoming=entries.filter(e=>e.isPayday).reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
+    content.innerHTML=`
+      <div style="font-weight:700;font-size:16px;margin-bottom:14px">${label}</div>
+      ${rows}
+      <div style="margin-top:14px;display:flex;gap:16px;flex-wrap:wrap">
+        ${total>0?`<div><div style="font-size:11px;color:var(--muted)">Going out</div><div style="font-weight:700;color:var(--red)">${fmt(total)}</div></div>`:''}
+        ${incoming>0?`<div><div style="font-size:11px;color:var(--muted)">Coming in</div><div style="font-weight:700;color:var(--em2)">+${fmt(incoming)}</div></div>`:''}
+      </div>
+      <button class="btn btn-ghost" style="width:100%;margin-top:16px" onclick="closeCalSheet()">Close</button>`;
+  }
+  overlay.classList.add('open');
+  sheet.classList.add('open');
+};
+window.closeCalSheet=()=>{
+  document.getElementById('cal-sheet').classList.remove('open');
+  document.getElementById('cal-overlay').classList.remove('open');
+};
 
 // ── History ───────────────────────────────────────────────────────────────────
 function renderHistory(){
