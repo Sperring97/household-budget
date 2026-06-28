@@ -634,8 +634,8 @@ function calc(){
   const sl=(parseFloat(state.saveSlider)||0)/100;
   const hasDebt1=owesTotal1>0,hasDebt2=owesTotal2>0;
   const comm1=disp1*sl,comm2=disp2*sl;
-  const save1=Math.round(hasDebt1?comm1*.6:comm1),over1=Math.round(hasDebt1?comm1*.4:0),spend1=Math.round(Math.max(0,disp1-comm1));
-  const save2=Math.round(hasDebt2?comm2*.6:comm2),over2=Math.round(hasDebt2?comm2*.4:0),spend2=Math.round(Math.max(0,disp2-comm2));
+  const save1=Math.round((hasDebt1?comm1*.6:comm1)*100)/100,over1=Math.round((hasDebt1?comm1*.4:0)*100)/100,spend1=Math.round(Math.max(0,disp1-comm1)*100)/100;
+  const save2=Math.round((hasDebt2?comm2*.6:comm2)*100)/100,over2=Math.round((hasDebt2?comm2*.4:0)*100)/100,spend2=Math.round(Math.max(0,disp2-comm2)*100)/100;
   const outs=shared+pers1+pers2+totalMin+gcTotal;
   const free=Math.max(0,inc-outs);
   const bank=(parseFloat(state.bal1)||0)+(parseFloat(state.bal2)||0);
@@ -647,7 +647,11 @@ function calc(){
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-const fmt=n=>'£'+Math.round(n||0).toLocaleString('en-GB');
+const fmt=n=>{
+  const v=parseFloat(n)||0;
+  const rounded=Math.round(v*100)/100;
+  return '£'+rounded.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+};
 const f=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
 const isLight=()=>document.body.classList.contains('light-mode');
 const gridC=()=>isLight()?'rgba(0,0,0,.06)':'rgba(30,45,69,.5)';
@@ -860,7 +864,7 @@ window.confirmGoal=async()=>{
 window.removeGoal=async i=>{(state.goals||[]).splice(i,1);await push();};
 window.contributeGoal=async(i,amt)=>{
   const g=state.goals[i];if(!g)return;
-  g.saved=Math.min(parseFloat(g.target)||0,(parseFloat(g.saved)||0)+amt);
+  g.saved=Math.round((Math.min(parseFloat(g.target)||Infinity,(parseFloat(g.saved)||0)+amt))*100)/100;
   await push();showToast('Contribution added!');
 };
 function payerLabel(g,N1,N2){
@@ -1042,13 +1046,13 @@ function simulatePayoff(debts,extra,method){
   const order=[...bals].sort(sortFn).map(d=>d.name);
   let interest=0,months=0;
   while(bals.some(d=>d.balance>0.5)){
-    months++;if(months>600)return{months:600,interest:Math.round(interest),order,neverClears:true};
+    months++;if(months>600)return{months:600,interest:Math.round(interest*100)/100,order,neverClears:true};
     bals.forEach(d=>{if(d.balance>0){const i=d.balance*(d.apr/100/12);interest+=i;d.balance+=i;}});
     bals.forEach(d=>{if(d.balance>0)d.balance=Math.max(0,d.balance-Math.min(d.min,d.balance));});
     let pool=extra;
     for(const d of bals.filter(d=>d.balance>0.5).sort(sortFn)){if(pool<=0)break;const pay=Math.min(pool,d.balance);d.balance-=pay;pool-=pay;}
   }
-  return{months,interest:Math.round(interest),order,neverClears:false};
+  return{months,interest:Math.round(interest*100)/100,order,neverClears:false};
 }
 window.runDebtAnalysis=()=>{
   const box=document.getElementById('debt-ai-box');
@@ -1086,13 +1090,13 @@ function renderDonut(c){
   const keys=Object.keys(cats),vals=keys.map(k=>cats[k]);
   const colors=['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
   if(ch.donut)ch.donut.destroy();if(!vals.length)return;
-  ch.donut=new Chart(ctx,{type:'doughnut',data:{labels:keys,datasets:[{data:vals,backgroundColor:colors.slice(0,keys.length),borderWidth:2,borderColor:cardBg(),hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{callbacks:{label:(ct)=>' '+ct.label+': £'+Math.round(ct.parsed||0).toLocaleString('en-GB')}}}}});
+  ch.donut=new Chart(ctx,{type:'doughnut',data:{labels:keys,datasets:[{data:vals,backgroundColor:colors.slice(0,keys.length),borderWidth:2,borderColor:cardBg(),hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{callbacks:{label:(ct)=>{const v=Math.round((ct.parsed||0)*100)/100;return ' '+ct.label+': £'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});}}}}}});
   document.getElementById('donut-legend').innerHTML=keys.map((k,i)=>`<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${colors[i]};flex-shrink:0"></span>${k}</span>`).join('');
 }
 function renderBar(c){
   const ctx=document.getElementById('barChart');if(!ctx)return;
   if(ch.bar)ch.bar.destroy();
-  ch.bar=new Chart(ctx,{type:'bar',data:{labels:['In','Outgoings','Savings','Spending'],datasets:[{data:[Math.round(c.inc||0),Math.round(c.outs||0),Math.round(c.savingsAmt||0),Math.round(c.spending||0)],backgroundColor:['#3b82f6','#ef4444','#10b981','#f59e0b'],borderRadius:4,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:(context)=>' £'+Math.round(context.parsed.y||0).toLocaleString('en-GB')}}},scales:{x:{grid:{display:false},ticks:{color:tickC(),font:{size:11}}},y:{grid:{color:gridC()},ticks:{color:tickC(),font:{size:11},callback:v=>'£'+Math.round(v||0).toLocaleString('en-GB')}}}}});
+  ch.bar=new Chart(ctx,{type:'bar',data:{labels:['In','Outgoings','Savings','Spending'],datasets:[{data:[(c.inc||0),(c.outs||0),(c.savingsAmt||0),(c.spending||0)],backgroundColor:['#3b82f6','#ef4444','#10b981','#f59e0b'],borderRadius:4,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:(context)=>{const v=Math.round((context.parsed.y||0)*100)/100;return ' £'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});}}}},scales:{x:{grid:{display:false},ticks:{color:tickC(),font:{size:11}}},y:{grid:{color:gridC()},ticks:{color:tickC(),font:{size:11},callback:v=>{const r=Math.round((v||0)*100)/100;return '£'+r.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}}}}}});
 }
 function renderDebtChart(c){
   const ctx=document.getElementById('debtChart');if(!ctx)return;
@@ -1101,11 +1105,11 @@ function renderDebtChart(c){
   const colors=['#ef4444','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#3b82f6'];
   const datasets=state.debts.map((d,i)=>{
     const mr=(parseFloat(d.apr)||0)/100/12;let bal=parseFloat(d.balance)||0;
-    const data=[Math.round(bal)];
-    for(let m=1;m<=60;m++){bal=Math.max(0,bal*(1+mr)-((parseFloat(d.min)||0)+extra));data.push(Math.round(bal));}
+    const data=[Math.round(bal*100)/100];
+    for(let m=1;m<=60;m++){bal=Math.max(0,bal*(1+mr)-((parseFloat(d.min)||0)+extra));data.push(Math.round(bal*100)/100);}
     return{label:d.name,data,borderColor:colors[i%6],backgroundColor:'transparent',borderWidth:2,pointRadius:0,tension:.4};
   });
-  ch.debt=new Chart(ctx,{type:'line',data:{labels:Array.from({length:61},(_,i)=>i===0?'Now':i+'m'),datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:tickC(),font:{size:11},boxWidth:10}},tooltip:{callbacks:{label:(ct)=>' '+ct.dataset.label+': £'+Math.round(ct.parsed.y||0).toLocaleString('en-GB')}}},scales:{x:{grid:{color:gridC()},ticks:{color:tickC(),font:{size:10},maxTicksLimit:8}},y:{grid:{color:gridC()},ticks:{color:tickC(),font:{size:10},callback:v=>'£'+Math.round(v/1000)+'k'}}}}});
+  ch.debt=new Chart(ctx,{type:'line',data:{labels:Array.from({length:61},(_,i)=>i===0?'Now':i+'m'),datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:tickC(),font:{size:11},boxWidth:10}},tooltip:{callbacks:{label:(ct)=>{const v=Math.round((ct.parsed.y||0)*100)/100;return ' '+ct.dataset.label+': £'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});}}}},scales:{x:{grid:{color:gridC()},ticks:{color:tickC(),font:{size:10},maxTicksLimit:8}},y:{grid:{color:gridC()},ticks:{color:tickC(),font:{size:10},callback:v=>'£'+(Math.round(v/100)/10).toFixed(1)+'k'}}}}});
 }
 
 // Slider
