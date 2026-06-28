@@ -337,7 +337,22 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
         </div>
         <div class="grid2" style="margin-bottom:10px">
           <input type="number" id="goal-saved" placeholder="Already saved £" min="0">
-          <input type="number" id="goal-monthly" placeholder="Monthly contribution £" min="0">
+          <select id="goal-payer">
+            <option value="1">Person 1 pays</option>
+            <option value="2">Person 2 pays</option>
+            <option value="split">Split equally</option>
+            <option value="income">Split by income share</option>
+          </select>
+        </div>
+        <div class="grid2" style="margin-bottom:10px">
+          <div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px" id="gc-p1-label">Person 1 monthly contribution £</div>
+            <input type="number" id="goal-contrib1" placeholder="£0" min="0">
+          </div>
+          <div id="gc-p2-wrap">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px" id="gc-p2-label">Person 2 monthly contribution £</div>
+            <input type="number" id="goal-contrib2" placeholder="£0" min="0">
+          </div>
         </div>
         <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="confirmGoal()">Add goal</button><button class="btn btn-ghost btn-sm" onclick="hideForm('add-goal-form')">Cancel</button></div>
       </div>
@@ -453,6 +468,35 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
   </main>
 </div>
 <div class="toast" id="toast"></div>
+<div id="edit-goal-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:998;align-items:center;justify-content:center">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;width:min(480px,92vw);max-height:90vh;overflow-y:auto">
+    <div style="font-size:16px;font-weight:700;margin-bottom:16px">Edit goal</div>
+    <input type="hidden" id="edit-goal-idx">
+    <div class="grid2" style="margin-bottom:10px">
+      <div><div style="font-size:12px;color:var(--muted);margin-bottom:4px">Name</div><input type="text" id="eg-name" placeholder="Goal name"></div>
+      <div><div style="font-size:12px;color:var(--muted);margin-bottom:4px">Target £ (optional)</div><input type="number" id="eg-target" placeholder="Leave blank if open-ended" min="0"></div>
+    </div>
+    <div class="grid2" style="margin-bottom:10px">
+      <div><div style="font-size:12px;color:var(--muted);margin-bottom:4px">Already saved £</div><input type="number" id="eg-saved" placeholder="£0" min="0"></div>
+      <div><div style="font-size:12px;color:var(--muted);margin-bottom:4px">Who pays</div>
+        <select id="eg-payer">
+          <option value="1">Person 1 pays</option>
+          <option value="2">Person 2 pays</option>
+          <option value="split">Split equally</option>
+          <option value="income">Split by income share</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid2" style="margin-bottom:16px">
+      <div><div style="font-size:12px;color:var(--muted);margin-bottom:4px" id="eg-p1-label">Person 1 monthly £</div><input type="number" id="eg-contrib1" placeholder="£0" min="0"></div>
+      <div id="eg-p2-wrap"><div style="font-size:12px;color:var(--muted);margin-bottom:4px" id="eg-p2-label">Person 2 monthly £</div><input type="number" id="eg-contrib2" placeholder="£0" min="0"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="saveGoalEdit()">Save changes</button>
+      <button class="btn btn-ghost" onclick="closeGoalEdit()">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -553,6 +597,16 @@ window.resetMonth=async()=>{state.extra1=[];state.extra2=[];await push();showToa
 
 // ── Calc ─────────────────────────────────────────────────────────────────────
 function sumAmt(arr){return(arr||[]).reduce((s,x)=>s+(parseFloat(x.amt)||0),0);}
+function goalContribs(share1,share2){
+  // Returns {gc1, gc2, gcTotal} — monthly goal contributions per person
+  let gc1=0,gc2=0;
+  (state.goals||[]).forEach(g=>{
+    const c1=parseFloat(g.contrib1)||0;
+    const c2=parseFloat(g.contrib2)||0;
+    gc1+=c1; gc2+=c2;
+  });
+  return{gc1,gc2,gcTotal:gc1+gc2};
+}
 function calc(){
   const extra1=sumAmt(state.extra1),extra2=sumAmt(state.extra2);
   const tInc1=(parseFloat(state.income1)||0)+extra1;
@@ -573,18 +627,20 @@ function calc(){
   const debtMin1=ownMin1+jointMin*share1,debtMin2=ownMin2+jointMin*share2;
   const owesTotal1=owe1+jointBal*share1,owesTotal2=owe2+jointBal*share2;
   const sc1=shared*share1,sc2=shared*share2;
-  const disp1=Math.max(0,tInc1-sc1-pers1-debtMin1);
-  const disp2=Math.max(0,tInc2-sc2-pers2-debtMin2);
+  // Goal contributions deducted per person before spare cash
+  const{gc1,gc2,gcTotal}=goalContribs(share1,share2);
+  const disp1=Math.max(0,tInc1-sc1-pers1-debtMin1-gc1);
+  const disp2=Math.max(0,tInc2-sc2-pers2-debtMin2-gc2);
   const sl=(parseFloat(state.saveSlider)||0)/100;
   const hasDebt1=owesTotal1>0,hasDebt2=owesTotal2>0;
   const comm1=disp1*sl,comm2=disp2*sl;
   const save1=Math.round(hasDebt1?comm1*.6:comm1),over1=Math.round(hasDebt1?comm1*.4:0),spend1=Math.round(Math.max(0,disp1-comm1));
   const save2=Math.round(hasDebt2?comm2*.6:comm2),over2=Math.round(hasDebt2?comm2*.4:0),spend2=Math.round(Math.max(0,disp2-comm2));
-  const outs=shared+pers1+pers2+totalMin;
+  const outs=shared+pers1+pers2+totalMin+gcTotal;
   const free=Math.max(0,inc-outs);
   const bank=(parseFloat(state.bal1)||0)+(parseFloat(state.bal2)||0);
   return{extra1,extra2,tInc1,tInc2,inc,share1,share2,shared,pers1,pers2,sc1,sc2,
-    debtMin1,debtMin2,owesTotal1,owesTotal2,disp1,disp2,
+    debtMin1,debtMin2,owesTotal1,owesTotal2,disp1,disp2,gc1,gc2,gcTotal,
     save1,over1,spend1,save2,over2,spend2,
     savingsAmt:save1+save2,debtOver:over1+over2,spending:spend1+spend2,
     outs,free,bank,totalMin,totalDebt};
@@ -658,20 +714,21 @@ function renderPaydayStrip(N1,N2){
 // ── Person columns ────────────────────────────────────────────────────────────
 const avatar=(name,color)=>`<div class="pc-avatar" style="background:${color}">${(name||'?').charAt(0).toUpperCase()}</div>`;
 function renderPersonCols(c,N1,N2){
-  const col=(name,color,tInc,sc,pers,dmin,disp,owes,bal)=>`
+  const col=(name,color,tInc,sc,pers,dmin,gc,disp,owes,bal)=>`
     <div class="person-col">
       <div class="pc-head">${avatar(name,color)}<span style="font-weight:700;font-size:15px">${name}</span></div>
       <div class="pc-row"><span class="lbl">Money in</span><span style="font-weight:700;color:var(--blue2)">${fmt(tInc)}</span></div>
       <div class="pc-row"><span class="lbl">Share of shared bills</span><span>${fmt(sc)}</span></div>
       <div class="pc-row"><span class="lbl">Personal bills</span><span>${fmt(pers)}</span></div>
       <div class="pc-row"><span class="lbl">Debt minimums</span><span>${fmt(dmin)}</span></div>
+      <div class="pc-row"><span class="lbl">Goal contributions</span><span style="color:var(--purple)">${fmt(gc)}</span></div>
       <div class="pc-row"><span class="lbl" style="color:var(--text);font-weight:600">Spare cash</span><span style="font-weight:700;color:var(--em2)">${fmt(disp)}</span></div>
       <div class="pc-row"><span class="lbl">Total owed</span><span style="color:${owes>0?'#fca5a5':'var(--muted)'}">${fmt(owes)}</span></div>
       <div class="pc-row"><span class="lbl">Bank balance</span><span style="color:var(--purple)">${fmt(bal)}</span></div>
     </div>`;
   document.getElementById('person-cols').innerHTML=
-    col(N1,'#3b82f6',c.tInc1,c.sc1,c.pers1,c.debtMin1,c.disp1,c.owesTotal1,parseFloat(state.bal1)||0)+
-    col(N2,'#10b981',c.tInc2,c.sc2,c.pers2,c.debtMin2,c.disp2,c.owesTotal2,parseFloat(state.bal2)||0);
+    col(N1,'#3b82f6',c.tInc1,c.sc1,c.pers1,c.debtMin1,c.gc1,c.disp1,c.owesTotal1,parseFloat(state.bal1)||0)+
+    col(N2,'#10b981',c.tInc2,c.sc2,c.pers2,c.debtMin2,c.gc2,c.disp2,c.owesTotal2,parseFloat(state.bal2)||0);
 }
 function renderSavingsCols(c,N1,N2){
   const col=(name,color,disp,save,over,spend)=>`
@@ -779,15 +836,24 @@ function renderSpendLog(){
 window.removeSpend=async i=>{(state.spends||[]).splice(i,1);await push();};
 
 // ── Goals ─────────────────────────────────────────────────────────────────────
+function resolveContribs(payer,c1raw,c2raw){
+  const c1=parseFloat(c1raw)||0,c2=parseFloat(c2raw)||0;
+  if(payer==='1') return{contrib1:c1,contrib2:0};
+  if(payer==='2') return{contrib1:0,contrib2:c1||c2};
+  return{contrib1:c1,contrib2:c2};
+}
 window.confirmGoal=async()=>{
   const name=document.getElementById('goal-name').value.trim();
   const target=parseFloat(document.getElementById('goal-target').value)||0;
   const saved=parseFloat(document.getElementById('goal-saved').value)||0;
-  const monthly=parseFloat(document.getElementById('goal-monthly').value)||0;
+  const payer=document.getElementById('goal-payer').value;
+  const{contrib1,contrib2}=resolveContribs(payer,
+    document.getElementById('goal-contrib1').value,
+    document.getElementById('goal-contrib2').value);
   if(!name){showToast('Enter a name');return;}
   state.goals=state.goals||[];
-  state.goals.push({name,target:target||null,saved,monthly});
-  ['goal-name','goal-target','goal-saved','goal-monthly'].forEach(id=>document.getElementById(id).value='');
+  state.goals.push({name,target:target||null,saved,payer:payer||'split',contrib1,contrib2});
+  ['goal-name','goal-target','goal-saved','goal-contrib1','goal-contrib2'].forEach(id=>document.getElementById(id).value='');
   hideForm('add-goal-form');
   await push();showToast('Goal added!');
 };
@@ -797,25 +863,37 @@ window.contributeGoal=async(i,amt)=>{
   g.saved=Math.min(parseFloat(g.target)||0,(parseFloat(g.saved)||0)+amt);
   await push();showToast('Contribution added!');
 };
+function payerLabel(g,N1,N2){
+  const p=g.payer||'split';
+  const c1=parseFloat(g.contrib1)||0,c2=parseFloat(g.contrib2)||0;
+  if(p==='1') return N1+' pays '+fmt(c1)+'/mo';
+  if(p==='2') return N2+' pays '+fmt(c2)+'/mo';
+  if(c1>0&&c2>0) return N1+' '+fmt(c1)+' · '+N2+' '+fmt(c2)+'/mo';
+  return 'Split — '+fmt(c1+c2)+'/mo total';
+}
 function renderGoals(c){
   const el=document.getElementById('goals-list');if(!el)return;
   const goals=state.goals||[];
+  const N1=state.name1||'Person 1',N2=state.name2||'Person 2';
   if(!goals.length){el.innerHTML='<div class="empty-state">No goals yet — add one above</div>';return;}
   const colors=['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899'];
   el.innerHTML=goals.map((g,i)=>{
     const target=parseFloat(g.target)||0;
     const hasTarget=target>0;
     const saved=parseFloat(g.saved)||0;
-    const monthly=parseFloat(g.monthly)||0;
+    const c1=parseFloat(g.contrib1)||0,c2=parseFloat(g.contrib2)||0;
+    const monthly=c1+c2;
     const pct=hasTarget?Math.min(100,Math.round((saved/target)*100)):null;
     const remaining=hasTarget?Math.max(0,target-saved):null;
     const months=hasTarget&&monthly>0?Math.ceil(remaining/monthly):null;
     const color=colors[i%colors.length];
+    const pl=payerLabel(g,N1,N2);
     return `<div class="goal-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
         <div>
           <div style="font-weight:700;font-size:15px">${g.name}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">${hasTarget?'Target: '+fmt(target)+' · ':''} Saved: ${fmt(saved)} · Monthly: ${fmt(monthly)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${hasTarget?'Target: '+fmt(target)+' · ':''} Saved: ${fmt(saved)}</div>
+          <div style="font-size:11px;color:var(--purple);margin-top:2px">${pl}</div>
         </div>
         <div style="text-align:right">
           ${pct!==null?`<span class="badge" style="background:rgba(59,130,246,.15);color:${color}">${pct}%</span>`:`<span class="badge badge-amber">Open-ended</span>`}
@@ -825,7 +903,8 @@ function renderGoals(c){
       ${hasTarget?`<div class="goal-bar"><div class="goal-fill" style="width:${pct}%;background:linear-gradient(90deg,${color},${color}aa)"></div></div>`:`<div style="font-size:12px;color:var(--muted);margin:6px 0 2px">Saving ${fmt(monthly)}/mo · ${fmt(saved)} accumulated so far</div>`}
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
         <button class="btn btn-success btn-sm" onclick="contributeGoal(${i},${monthly||50})">+ ${fmt(monthly||50)}</button>
-        <button class="btn btn-ghost btn-sm" onclick="removeGoal(${i})">Remove</button>
+        <button class="btn btn-ghost btn-sm" onclick="openGoalEdit(${i})">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="removeGoal(${i})">Remove</button>
       </div>
     </div>`;
   }).join('');
@@ -1091,6 +1170,61 @@ window.confirmDebt=async()=>{
 window.removeDebt=async i=>{state.debts.splice(i,1);await push();};
 
 // Nav
+// Goal edit modal
+window.openGoalEdit=i=>{
+  const g=state.goals[i];if(!g)return;
+  const N1=state.name1||'Person 1',N2=state.name2||'Person 2';
+  document.getElementById('edit-goal-idx').value=i;
+  document.getElementById('eg-name').value=g.name||'';
+  document.getElementById('eg-target').value=g.target||'';
+  document.getElementById('eg-saved').value=g.saved||'';
+  document.getElementById('eg-payer').value=g.payer||'split';
+  document.getElementById('eg-contrib1').value=g.contrib1||'';
+  document.getElementById('eg-contrib2').value=g.contrib2||'';
+  document.getElementById('eg-p1-label').textContent=N1+' monthly £';
+  document.getElementById('eg-p2-label').textContent=N2+' monthly £';
+  updateEditPayerUI(g.payer||'split',N1,N2);
+  document.getElementById('edit-goal-modal').style.display='flex';
+};
+window.closeGoalEdit=()=>{document.getElementById('edit-goal-modal').style.display='none';};
+function updateEditPayerUI(payer,N1,N2){
+  const p2wrap=document.getElementById('eg-p2-wrap');
+  const p1lbl=document.getElementById('eg-p1-label');
+  if(!p2wrap||!p1lbl)return;
+  if(payer==='1'){p1lbl.textContent=N1+' monthly £';p2wrap.style.display='none';}
+  else if(payer==='2'){p1lbl.textContent=N2+' monthly £';p2wrap.style.display='none';}
+  else{p1lbl.textContent=N1+' monthly £';p2wrap.style.display='block';}
+}
+document.getElementById('eg-payer').addEventListener('change',function(){
+  const N1=state.name1||'Person 1',N2=state.name2||'Person 2';
+  updateEditPayerUI(this.value,N1,N2);
+});
+window.saveGoalEdit=async()=>{
+  const i=parseInt(document.getElementById('edit-goal-idx').value);
+  if(isNaN(i)||!state.goals[i])return;
+  const payer=document.getElementById('eg-payer').value;
+  const c1raw=document.getElementById('eg-contrib1').value;
+  const c2raw=document.getElementById('eg-contrib2').value;
+  const{contrib1,contrib2}=resolveContribs(payer,c1raw,payer==='2'?c2raw:c1raw);
+  state.goals[i]={
+    ...state.goals[i],
+    name:document.getElementById('eg-name').value.trim()||state.goals[i].name,
+    target:parseFloat(document.getElementById('eg-target').value)||null,
+    saved:parseFloat(document.getElementById('eg-saved').value)||0,
+    payer,contrib1,contrib2
+  };
+  closeGoalEdit();
+  await push();showToast('Goal updated!');
+};
+// Also update add-goal form payer UI
+document.getElementById('goal-payer').addEventListener('change',function(){
+  const N1=state.name1||'Person 1',N2=state.name2||'Person 2';
+  const p2wrap=document.getElementById('gc-p2-wrap');
+  const p1lbl=document.getElementById('gc-p1-label');
+  if(this.value==='1'){p1lbl.textContent=N1+' monthly £';if(p2wrap)p2wrap.style.display='none';}
+  else if(this.value==='2'){p1lbl.textContent=N2+' monthly £';if(p2wrap)p2wrap.style.display='none';}
+  else{p1lbl.textContent=(N1||'Person 1')+' monthly £';if(p2wrap)p2wrap.style.display='block';}
+});
 window.goTo=page=>{
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
