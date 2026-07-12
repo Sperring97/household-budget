@@ -135,6 +135,31 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
 .payday-card{background:linear-gradient(135deg,rgba(59,130,246,.1),rgba(16,185,129,.08));border:1px solid rgba(59,130,246,.2);border-radius:12px;padding:16px}
 /* Spending tracker entry */
 .spend-entry{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+/* PIN lock */
+.pin-screen{position:fixed;inset:0;background:var(--navy);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.pin-logo{font-size:40px;margin-bottom:8px}
+.pin-title{font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px}
+.pin-sub{font-size:13px;color:var(--muted);margin-bottom:32px;text-align:center}
+.pin-dots{display:flex;gap:12px;margin-bottom:28px}
+.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);transition:all .15s}
+.pin-dot.filled{background:var(--blue);border-color:var(--blue)}
+.pin-pad{display:grid;grid-template-columns:repeat(3,72px);gap:12px}
+.pin-key{width:72px;height:72px;border-radius:50%;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:20px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.pin-key:hover{background:var(--card2);border-color:var(--blue)}
+.pin-key:active{transform:scale(.94)}
+.pin-error{color:var(--red);font-size:13px;margin-top:12px;min-height:20px}
+/* Payment button */
+.pay-btn{background:linear-gradient(135deg,var(--blue),#6366f1);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+.pay-btn:hover{opacity:.88}
+/* Auto badge */
+.auto-badge{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600;background:rgba(16,185,129,.15);color:var(--em2);border:1px solid rgba(16,185,129,.2)}
+.paused-badge{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600;background:rgba(245,158,11,.12);color:var(--amber);border:1px solid rgba(245,158,11,.2)}
+/* Vs last month arrows */
+.trend-up{color:var(--em2)}.trend-down{color:var(--red)}.trend-flat{color:var(--muted)}
+/* Payment modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:995;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;width:min(420px,92vw);max-height:85vh;overflow-y:auto}
 @media(max-width:640px){
   .app{flex-direction:column;height:auto}
   .sidebar{width:100%;flex-direction:row;overflow-x:auto;padding:0;border-right:none;border-bottom:1px solid var(--border)}
@@ -182,8 +207,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
         <div class="card card-sm"><div class="metric-label">Money in this month</div><div class="metric-val" id="d-income" style="color:var(--blue2)">£0</div><div class="metric-sub" id="d-income-sub">pay + extras</div></div>
         <div class="card card-sm"><div class="metric-label">Total outgoings</div><div class="metric-val" id="d-out" style="color:var(--red)">£0</div><div class="metric-sub">bills + debt mins</div></div>
         <div class="card card-sm"><div class="metric-label">Free pot</div><div class="metric-val" id="d-free" style="color:var(--em2)">£0</div><div class="metric-sub">after everything</div></div>
-        <div class="card card-sm"><div class="metric-label">Combined bank balance</div><div class="metric-val" id="d-bank" style="color:var(--purple)">£0</div><div class="metric-sub">what you have now</div></div>
+        <div class="card card-sm"><div class="metric-label">Combined bank balance</div><div class="metric-val" id="d-bank" style="color:var(--purple)">£0</div><div class="metric-sub" id="d-bank-sub">manual entry</div></div>
       </div>
+      <!-- vs last month strip -->
+      <div id="vs-last-month" style="margin-bottom:16px"></div>
       <h2>Per-person breakdown</h2>
       <div class="grid2" style="margin-bottom:16px" id="person-cols"></div>
       <div class="grid2">
@@ -205,7 +232,16 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
           </div>
           <div style="margin-bottom:12px">
             <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Payday (day of month)</div>
-            <input type="number" id="p1-payday" placeholder="e.g. 25" min="1" max="31" oninput="onCoreInput()">
+            <input type="number" id="p1-payday" placeholder="e.g. 28" min="1" max="31" oninput="onCoreInput()">
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Weekend rule</div>
+            <select id="p1-payday-rule" onchange="onCoreInput()">
+              <option value="none">Pay on exact date</option>
+              <option value="prev-friday">Previous Friday if weekend</option>
+              <option value="next-monday">Next Monday if weekend</option>
+              <option value="prev-workday">Previous working day</option>
+            </select>
           </div>
         </div>
         <div class="card">
@@ -218,13 +254,46 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
             <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Payday (day of month)</div>
             <input type="number" id="p2-payday" placeholder="e.g. 1" min="1" max="31" oninput="onCoreInput()">
           </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Weekend rule</div>
+            <select id="p2-payday-rule" onchange="onCoreInput()">
+              <option value="none">Pay on exact date</option>
+              <option value="prev-friday">Previous Friday if weekend</option>
+              <option value="next-monday">Next Monday if weekend</option>
+              <option value="prev-workday">Previous working day</option>
+            </select>
+          </div>
         </div>
       </div>
       <div class="card" style="margin-bottom:16px">
-        <h2>💰 Current bank balances</h2>
-        <div class="grid2">
-          <div><div style="font-size:12px;color:var(--muted);margin-bottom:4px" id="bal1-label">Person 1</div><input type="number" id="bal1" placeholder="£0" oninput="onCoreInput()"></div>
-          <div><div style="font-size:12px;color:var(--muted);margin-bottom:4px" id="bal2-label">Person 2</div><input type="number" id="bal2" placeholder="£0" oninput="onCoreInput()"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <h2 style="margin-bottom:0">💰 Bank balances</h2>
+          <span class="badge badge-blue" id="bal-updated-label">manual</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Enter your real balance and the date it was correct — the app projects forward from there automatically.</div>
+        <div class="grid2" style="margin-bottom:10px">
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px" id="bal1-label">Person 1 — actual balance</div>
+            <input type="number" id="bal1" placeholder="£0" oninput="onCoreInput()">
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px" id="bal2-label">Person 2 — actual balance</div>
+            <input type="number" id="bal2" placeholder="£0" oninput="onCoreInput()">
+          </div>
+        </div>
+        <div class="grid2" style="margin-bottom:12px">
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Balance correct as of</div>
+            <input type="date" id="bal1-date" oninput="onCoreInput()">
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Balance correct as of</div>
+            <input type="date" id="bal2-date" oninput="onCoreInput()">
+          </div>
+        </div>
+        <div style="background:var(--card2);border-radius:8px;padding:12px;border:1px solid var(--border)" id="projected-bal-panel">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Projected balance — rest of this month</div>
+          <div id="projected-bal-content" style="font-size:13px;color:var(--muted)">Enter bank balances above to see projections</div>
         </div>
       </div>
       <div class="card" style="margin-bottom:16px">
@@ -477,6 +546,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
           <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Clears variable income only — no history saved.</div>
           <button class="btn btn-ghost btn-sm" onclick="resetMonth()">Start fresh month</button>
           <hr class="divider">
+          <h2>🔒 PIN lock</h2>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Set a 4-digit PIN — both of you need it to open the app. Tap Skip on the PIN screen to disable.</div>
+          <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+            <input type="password" id="pin-set-input" placeholder="New 4-digit PIN" maxlength="4" style="max-width:160px">
+            <button class="btn btn-primary btn-sm" onclick="savePIN()">Set PIN</button>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="clearPIN()">Remove PIN</button>
+          <hr class="divider">
           <div style="font-size:11px;color:var(--dim);line-height:1.9">
             <div>🔒 Firebase: <span style="color:var(--muted)">joint-household-budget</span></div>
             <div>⚡ Real-time sync active</div>
@@ -488,6 +565,82 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
   </main>
 </div>
 <div class="toast" id="toast"></div>
+
+<!-- PIN LOCK SCREEN -->
+<div class="pin-screen" id="pin-screen" style="display:none">
+  <div class="pin-logo">🏠</div>
+  <div class="pin-title">HomeBudget</div>
+  <div class="pin-sub" id="pin-sub">Enter your PIN to continue</div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-pad">
+    <button class="pin-key" onclick="pinPress('1')">1</button>
+    <button class="pin-key" onclick="pinPress('2')">2</button>
+    <button class="pin-key" onclick="pinPress('3')">3</button>
+    <button class="pin-key" onclick="pinPress('4')">4</button>
+    <button class="pin-key" onclick="pinPress('5')">5</button>
+    <button class="pin-key" onclick="pinPress('6')">6</button>
+    <button class="pin-key" onclick="pinPress('7')">7</button>
+    <button class="pin-key" onclick="pinPress('8')">8</button>
+    <button class="pin-key" onclick="pinPress('9')">9</button>
+    <button class="pin-key" style="font-size:14px" onclick="pinClear()">⌫</button>
+    <button class="pin-key" onclick="pinPress('0')">0</button>
+    <button class="pin-key" style="font-size:13px;color:var(--muted)" onclick="pinSkip()">Skip</button>
+  </div>
+  <div class="pin-error" id="pin-error"></div>
+</div>
+
+<!-- MAKE PAYMENT MODAL -->
+<div class="modal-overlay" id="payment-modal">
+  <div class="modal-box">
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px" id="pay-modal-title">Make a payment</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px" id="pay-modal-sub"></div>
+    <div style="margin-bottom:10px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Payment amount</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button class="btn btn-ghost btn-sm" id="pay-min-btn" onclick="setPayAmount('min')">Pay minimum</button>
+        <button class="btn btn-ghost btn-sm" onclick="setPayAmount('custom')">Custom amount</button>
+      </div>
+      <input type="number" id="pay-amount" placeholder="£ amount" min="0" style="margin-bottom:4px">
+      <div style="font-size:11px;color:var(--muted)" id="pay-hint"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-primary" onclick="confirmPayment()">Confirm payment</button>
+      <button class="btn btn-ghost" onclick="closePaymentModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- GOAL AUTOMATION MODAL -->
+<div class="modal-overlay" id="goal-auto-modal">
+  <div class="modal-box">
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px">Set up automatic contributions</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px" id="goal-auto-name"></div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Payment day of month</div>
+      <input type="number" id="auto-day" placeholder="e.g. 28" min="1" max="31">
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Weekend rule</div>
+      <select id="auto-weekend">
+        <option value="none">No adjustment — pay on exact date</option>
+        <option value="prev-friday">Move to previous Friday if weekend</option>
+        <option value="next-monday">Move to next Monday if weekend</option>
+        <option value="prev-workday">Move to previous working day</option>
+      </select>
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Monthly amount (per person total)</div>
+      <input type="number" id="auto-amount" placeholder="£ amount" min="0">
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="confirmGoalAuto()">Set up automation</button>
+      <button class="btn btn-ghost" onclick="closeGoalAutoModal()">Manual only</button>
+    </div>
+  </div>
+</div>
 <div id="edit-goal-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:998;align-items:center;justify-content:center">
   <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;width:min(480px,92vw);max-height:90vh;overflow-y:auto">
     <div style="font-size:16px;font-weight:700;margin-bottom:16px">Edit goal</div>
@@ -576,7 +729,13 @@ async function initFS(){
     document.getElementById('sync-status').style.display='inline-flex';
     onSnapshot(DOC,s=>{if(s.exists()){state={...state,...s.data()};renderAll();}});
     renderAll();
-  }catch(e){console.warn('Firebase offline:',e);renderAll();}
+    // PIN check
+    if(getStoredPIN()) showPINScreen('lock');
+    else resetInactivity();
+    // Goal automations + payday credit
+    await checkGoalAutomations();
+    await checkPaydayAutoCredit();
+  }catch(e){console.warn('Firebase offline:',e);renderAll();if(getStoredPIN())showPINScreen('lock');}
 }
 async function push(){try{await setDoc(DOC,state);}catch(e){}renderAll();}
 
@@ -586,8 +745,12 @@ window.onCoreInput=()=>{
   state.income2=parseFloat(document.getElementById('p2-income').value)||0;
   state.payday1=parseInt(document.getElementById('p1-payday').value)||0;
   state.payday2=parseInt(document.getElementById('p2-payday').value)||0;
+  state.paydayRule1=document.getElementById('p1-payday-rule')?.value||'none';
+  state.paydayRule2=document.getElementById('p2-payday-rule')?.value||'none';
   state.bal1=parseFloat(document.getElementById('bal1').value)||0;
   state.bal2=parseFloat(document.getElementById('bal2').value)||0;
+  state.bal1Date=document.getElementById('bal1-date')?.value||'';
+  state.bal2Date=document.getElementById('bal2-date')?.value||'';
   push();
 };
 window.saveName=()=>{state.name1=document.getElementById('name1-input').value||'Person 1';state.name2=document.getElementById('name2-input').value||'Person 2';push();};
@@ -659,6 +822,7 @@ function calc(){
   const outs=shared+pers1+pers2+totalMin+gcTotal;
   const free=Math.max(0,inc-outs);
   const bank=(parseFloat(state.bal1)||0)+(parseFloat(state.bal2)||0);
+  state._share1=share1;state._share2=share2; // expose for payment deduction
   return{extra1,extra2,tInc1,tInc2,inc,share1,share2,shared,pers1,pers2,sc1,sc2,
     debtMin1,debtMin2,owesTotal1,owesTotal2,disp1,disp2,gc1,gc2,gcTotal,
     save1,over1,spend1,save2,over2,spend2,
@@ -686,6 +850,13 @@ function renderAll(){
   sync('p1-income',state.income1);sync('p2-income',state.income2);
   sync('p1-payday',state.payday1);sync('p2-payday',state.payday2);
   sync('bal1',state.bal1);sync('bal2',state.bal2);
+  const b1u=document.getElementById('bal1-updated'),b2u=document.getElementById('bal2-updated');
+  if(b1u)b1u.textContent=state.bal1?'Last set: '+fmt(state.bal1):'Enter your actual balance';
+  if(b2u)b2u.textContent=state.bal2?'Last set: '+fmt(state.bal2):'Enter your actual balance';
+  const r1=document.getElementById('p1-payday-rule');if(r1&&document.activeElement!==r1)r1.value=state.paydayRule1||'none';
+  const r2=document.getElementById('p2-payday-rule');if(r2&&document.activeElement!==r2)r2.value=state.paydayRule2||'none';
+  const bd1=document.getElementById('bal1-date');if(bd1&&document.activeElement!==bd1)bd1.value=state.bal1Date||'';
+  const bd2=document.getElementById('bal2-date');if(bd2&&document.activeElement!==bd2)bd2.value=state.bal2Date||'';
   sync('name1-input',state.name1);sync('name2-input',state.name2);
   f('p1-label',N1+' base pay');f('p2-label',N2+' base pay');
   f('bal1-label',N1+' balance');f('bal2-label',N2+' balance');
@@ -694,7 +865,13 @@ function renderAll(){
   // Dashboard
   f('d-income',fmt(c.inc));
   f('d-income-sub','pay '+fmt(c.inc-c.extra1-c.extra2)+' + extras '+fmt(c.extra1+c.extra2));
-  f('d-out',fmt(c.outs));f('d-free',fmt(c.free));f('d-bank',fmt(c.bank));
+  f('d-out',fmt(c.outs));f('d-free',fmt(c.free));
+  // Use projected balance on dashboard if dates set
+  {const pb1=projectBalance(1),pb2=projectBalance(2);
+  const projBank=(pb1?pb1.projected:(parseFloat(state.bal1)||0))+(pb2?pb2.projected:(parseFloat(state.bal2)||0));
+  f('d-bank',fmt(projBank));
+  const bsub=document.getElementById('d-bank-sub');
+  if(bsub)bsub.textContent=(pb1||pb2)?'projected (manual: '+fmt(c.bank)+')':'what you have now';}
   // Payday
   renderPaydayStrip(N1,N2);
   // Slider
@@ -707,12 +884,15 @@ function renderAll(){
   renderPersonCols(c,N1,N2);
   renderSavingsCols(c,N1,N2);
   renderDebtSummary(c,N1,N2);
+  renderVsLastMonth(c);
   generateSavingsAdvice(c,sl);
   renderExtraList();renderBillsTable();renderPersonalTable();
   renderDebtList(N1,N2);renderDebtUpdateSelect();
   renderBudgetList();renderSpendLog();
   renderGoals(c);renderCalendar();renderHistory();
+  renderProjectedBalances();
   renderDonut(c);renderBar(c);renderDebtChart(c);
+  renderProjectedBalance();
 }
 
 // ── Payday countdown ─────────────────────────────────────────────────────────
@@ -1088,7 +1268,10 @@ function renderDebtList(N1,N2){
         <div style="font-size:11px;color:var(--muted);margin-top:4px">APR: <span style="color:var(--amber)">${d.apr}%</span> · Min: ${fmt(d.min)}/mo</div></div>
         <div style="text-align:right">
           <div style="font-size:22px;font-weight:700;color:var(--red)">${fmt(d.balance)}</div>
-          <button class="btn btn-danger btn-sm" style="margin-top:6px" onclick="removeDebt(${i})">Remove</button>
+          <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
+            <button class="pay-btn" onclick="openPaymentModal(${i})">💳 Pay</button>
+            <button class="btn btn-danger btn-sm" onclick="removeDebt(${i})">✕</button>
+          </div>
         </div>
       </div>
       <div class="progress-wrap"><div class="progress-fill" style="width:100%;background:${parseFloat(d.apr)>20?'var(--red)':parseFloat(d.apr)>10?'var(--amber)':'var(--em2)'}"></div></div>
@@ -1303,6 +1486,117 @@ document.getElementById('goal-payer').addEventListener('change',function(){
   else if(this.value==='2'){p1lbl.textContent=N2+' monthly £';if(p2wrap)p2wrap.style.display='none';}
   else{p1lbl.textContent=(N1||'Person 1')+' monthly £';if(p2wrap)p2wrap.style.display='block';}
 });
+
+// ── SMART BALANCE PROJECTION ─────────────────────────────────────────────────
+function projectBalance(person){
+  const baseBal=parseFloat(person===1?state.bal1:state.bal2)||0;
+  const asOfStr=person===1?state.bal1Date:state.bal2Date;
+  if(!asOfStr)return null;
+  const asOf=new Date(asOfStr);asOf.setHours(0,0,0,0);
+  const today=new Date();today.setHours(0,0,0,0);
+  if(asOf>=today)return{projected:baseBal,events:[]};
+  let running=baseBal;
+  const events=[];
+  const c=calc();
+  const share=person===1?c.share1:c.share2;
+  const inc=parseFloat(person===1?state.income1:state.income2)||0;
+  const pd=person===1?state.payday1:state.payday2;
+  const rule=person===1?state.paydayRule1||'none':state.paydayRule2||'none';
+  // Payday this month
+  if(pd&&inc>0){
+    const payDate=smartPayday(pd,rule);
+    if(payDate>asOf&&payDate<=today)events.push({date:new Date(payDate),amount:inc,label:(person===1?state.name1:state.name2)+' payday'});
+    // Previous month if asOf was last month
+    if(asOf.getMonth()!==today.getMonth()){
+      const prevRef=new Date(asOf.getFullYear(),asOf.getMonth(),pd);
+      const prevPay=smartPayday(pd,rule,prevRef);
+      if(prevPay>asOf&&prevPay<=today)events.push({date:new Date(prevPay),amount:inc,label:'Payday (prev month)'});
+    }
+  }
+  // Variable income (date unknown — add as lump at end)
+  const extras=person===1?(state.extra1||[]):(state.extra2||[]);
+  const extraTotal=extras.reduce((s,e)=>s+(parseFloat(e.amt)||0),0);
+  if(extraTotal>0)events.push({date:new Date(today),amount:extraTotal,label:'Variable income logged'});
+  // Shared bills by share
+  (state.sharedBills||[]).forEach(b=>{
+    if(!b.day)return;
+    const d=new Date(today.getFullYear(),today.getMonth(),parseInt(b.day));
+    if(d>asOf&&d<=today)events.push({date:d,amount:-(parseFloat(b.amt)||0)*share,label:b.name+' (share)'});
+  });
+  // Personal bills
+  const myBills=person===1?(state.personal1||[]):(state.personal2||[]);
+  myBills.forEach(b=>{
+    if(!b.day)return;
+    const d=new Date(today.getFullYear(),today.getMonth(),parseInt(b.day));
+    if(d>asOf&&d<=today)events.push({date:d,amount:-(parseFloat(b.day)||0),label:b.name});
+    // fix: use b.amt not b.day
+    events[events.length-1].amount=-(parseFloat(b.amt)||0);
+  });
+  // Debt minimums — assume day 1 of month
+  (state.debts||[]).forEach(d=>{
+    const pid=String(d.person);
+    if(pid!==String(person)&&pid!=='shared')return;
+    const amt=pid==='shared'?(parseFloat(d.min)||0)*share:(parseFloat(d.min)||0);
+    const dd=new Date(today.getFullYear(),today.getMonth(),1);
+    if(dd>asOf&&dd<=today)events.push({date:dd,amount:-amt,label:d.name+' min'});
+  });
+  // Manual payments via Pay button
+  (state.paymentLog||[]).forEach(p=>{
+    const pd2=new Date(p.date);pd2.setHours(0,0,0,0);
+    if(pd2<=asOf||pd2>today)return;
+    const debt=(state.debts||[]).find(d=>d.name===p.debt);
+    if(!debt)return;
+    const pid=String(debt.person);
+    const portion=pid==='shared'?p.amt*share:p.amt;
+    if(pid===String(person)||pid==='shared')events.push({date:pd2,amount:-portion,label:p.debt+' payment'});
+  });
+  // Goal auto-contributions
+  (state.goals||[]).forEach(g=>{
+    if(!g.autoDay||g.autoPaused)return;
+    const gd=smartPayday(g.autoDay,g.autoWeekend||'none');
+    if(gd>asOf&&gd<=today){
+      const myAmt=person===1?(parseFloat(g.contrib1)||0):(parseFloat(g.contrib2)||0);
+      if(myAmt>0)events.push({date:new Date(gd),amount:-myAmt,label:g.name+' auto-save'});
+    }
+  });
+  events.forEach(e=>{running+=e.amount;});
+  return{projected:Math.round(running*100)/100,events:events.sort((a,b)=>a.date-b.date)};
+}
+
+function renderProjectedBalances(){
+  const el=document.getElementById('projected-bal-panel');if(!el)return;
+  const N1=state.name1||'Person 1',N2=state.name2||'Person 2';
+  const p1=projectBalance(1),p2=projectBalance(2);
+  if(!p1&&!p2){el.innerHTML='<div style="font-size:12px;color:var(--muted)">Set the "balance correct as of" dates above to see projections.</div>';return;}
+  const fmtDate=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+  const todayStr=fmtDate(new Date());
+  const row=(name,color,base,res)=>{
+    if(!res)return`<div style="font-size:13px;color:var(--muted);margin-bottom:8px">${name}: set a date above to project.</div>`;
+    const diff=res.projected-(parseFloat(base)||0);
+    const dc=diff>=0?'var(--em2)':'var(--red)';
+    const ds=(diff>=0?'+':'')+fmt(diff);
+    const evList=res.events.map(e=>`<span style="color:${e.amount>=0?'var(--em2)':'var(--red)'}">${fmtDate(e.date)}: ${e.amount>=0?'+':''}${fmt(e.amount)} ${e.label}</span>`).join('<br>');
+    return`<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+        <span style="font-weight:600;font-size:13px;color:${color}">${name}</span>
+        <span style="font-size:18px;font-weight:700">${fmt(res.projected)}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted)">Entered ${fmt(parseFloat(base)||0)} → projected to today <span style="color:${dc}">(${ds})</span></div>
+      ${res.events.length?`<div style="margin-top:6px;font-size:11px;line-height:1.8;color:var(--dim)">${evList}</div>`:''}
+    </div>`;
+  };
+  const combo=(p1?p1.projected:parseFloat(state.bal1)||0)+(p2?p2.projected:parseFloat(state.bal2)||0);
+  el.innerHTML=`
+    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">Projected balances — today (${todayStr})</div>
+    ${row(N1,'var(--blue2)',state.bal1,p1)}
+    <div style="border-top:1px solid var(--border);margin:4px 0 12px"></div>
+    ${row(N2,'var(--em2)',state.bal2,p2)}
+    <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;justify-content:space-between">
+      <span style="font-size:12px;color:var(--muted)">Projected combined</span>
+      <span style="font-weight:700;color:var(--purple)">${fmt(combo)}</span>
+    </div>`;
+}
+
 window.goTo=page=>{
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1311,6 +1605,526 @@ window.goTo=page=>{
   if(map[page]!==undefined)document.querySelectorAll('.nav-item')[map[page]].classList.add('active');
 };
 window.showToast=msg=>{const t=document.getElementById('toast');t.textContent='✓ '+msg;t.style.display='block';setTimeout(()=>t.style.display='none',2500);};
+
+// ── PIN LOCK ─────────────────────────────────────────────────────────────────
+let pinBuffer = '';
+let pinEnabled = false;
+let inactivityTimer = null;
+const INACTIVITY_MS = 5 * 60 * 1000; // 5 minutes
+
+function getStoredPIN(){ return localStorage.getItem('hb-pin'); }
+window.savePIN = () => {
+  const val = document.getElementById('pin-set-input').value.trim();
+  if(val.length !== 4 || !/^\d{4}$/.test(val)){ showToast('PIN must be exactly 4 digits'); return; }
+  localStorage.setItem('hb-pin', val);
+  document.getElementById('pin-set-input').value = '';
+  showToast('PIN set! You'll need it next time you open the app.');
+};
+window.clearPIN = () => { localStorage.removeItem('hb-pin'); showToast('PIN removed'); };
+function showPINScreen(mode){
+  pinBuffer = '';
+  updatePINDots();
+  document.getElementById('pin-sub').textContent = mode === 'set' ? 'Create a 4-digit PIN' : 'Enter your PIN to continue';
+  document.getElementById('pin-error').textContent = '';
+  document.getElementById('pin-screen').style.display = 'flex';
+}
+function hidePINScreen(){ document.getElementById('pin-screen').style.display = 'none'; resetInactivity(); }
+window.pinPress = d => {
+  if(pinBuffer.length >= 4) return;
+  pinBuffer += d;
+  updatePINDots();
+  if(pinBuffer.length === 4) setTimeout(checkPIN, 120);
+};
+window.pinClear = () => { pinBuffer = pinBuffer.slice(0,-1); updatePINDots(); };
+window.pinSkip = () => { hidePINScreen(); };
+function updatePINDots(){
+  for(let i=0;i<4;i++){
+    const d = document.getElementById('pd'+i);
+    if(d) d.classList.toggle('filled', i < pinBuffer.length);
+  }
+}
+function checkPIN(){
+  const stored = getStoredPIN();
+  if(!stored || pinBuffer === stored){ hidePINScreen(); }
+  else {
+    document.getElementById('pin-error').textContent = 'Incorrect PIN — try again';
+    pinBuffer = ''; updatePINDots();
+    const s = document.getElementById('pin-screen');
+    s.style.animation = 'none'; setTimeout(()=>s.style.animation='',10);
+  }
+}
+function resetInactivity(){
+  clearTimeout(inactivityTimer);
+  if(getStoredPIN()){
+    inactivityTimer = setTimeout(()=>showPINScreen('lock'), INACTIVITY_MS);
+  }
+}
+['click','touchstart','keydown','scroll'].forEach(ev =>
+  document.addEventListener(ev, resetInactivity, {passive:true})
+);
+
+// ── SMART PAYDAY DATE ─────────────────────────────────────────────────────────
+// Given a target day-of-month and a weekend rule, return the adjusted date for the current/next month
+function smartPayday(dayOfMonth, weekendRule, forMonth){
+  const now = forMonth || new Date();
+  const d = new Date(now.getFullYear(), now.getMonth(), dayOfMonth);
+  if(weekendRule === 'none') return d;
+  const dow = d.getDay(); // 0=Sun, 6=Sat
+  if(dow === 0) { // Sunday
+    if(weekendRule === 'prev-friday' || weekendRule === 'prev-workday') d.setDate(d.getDate()-2);
+    else d.setDate(d.getDate()+1);
+  } else if(dow === 6) { // Saturday
+    if(weekendRule === 'prev-friday' || weekendRule === 'prev-workday') d.setDate(d.getDate()-1);
+    else d.setDate(d.getDate()+2);
+  }
+  return d;
+}
+function daysUntil(targetDate){
+  const now = new Date();
+  const t = new Date(targetDate); t.setHours(0,0,0,0);
+  const n = new Date(now); n.setHours(0,0,0,0);
+  return Math.round((t-n)/(1000*60*60*24));
+}
+function paydayLabel(days){
+  if(days === 0) return 'TODAY';
+  if(days === 1) return 'tomorrow';
+  if(days < 0) return `${Math.abs(days)} days ago`;
+  return `in ${days} days`;
+}
+
+// ── PAYDAY STRIP (updated to use weekend rule) ───────────────────────────────
+function renderPaydayStrip(N1,N2){
+  const el = document.getElementById('payday-strip'); if(!el) return;
+  const card = (name, color, inc, payday, rule) => {
+    if(!payday) return '';
+    const adjusted = smartPayday(payday, rule||'none');
+    const days = daysUntil(adjusted);
+    const adjDay = adjusted.getDate();
+    const diffNote = adjDay !== payday ? ` (adjusted from ${payday}th)` : '';
+    const label = paydayLabel(days);
+    return `<div class="payday-card">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${name}'s payday</div>
+      <div style="font-size:20px;font-weight:700;color:${color}">${label}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">${fmt(inc)} expected · ${adjusted.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}${diffNote}</div>
+    </div>`;
+  };
+  el.innerHTML =
+    card(N1,'var(--blue2)',state.income1,state.payday1,state.paydayRule1) +
+    card(N2,'var(--em2)',state.income2,state.payday2,state.paydayRule2);
+}
+
+// ── VS LAST MONTH ─────────────────────────────────────────────────────────────
+function renderVsLastMonth(c){
+  const el = document.getElementById('vs-last-month'); if(!el) return;
+  const h = state.history||[];
+  if(!h.length){ el.innerHTML=''; return; }
+  const last = h[0];
+  const arrow = (curr,prev,goodUp=true) => {
+    if(!prev) return '';
+    const diff = curr - prev;
+    const pct = prev !== 0 ? Math.round(Math.abs(diff)/Math.abs(prev)*100) : 0;
+    const up = diff >= 0;
+    const good = goodUp ? up : !up;
+    const cls = good ? 'trend-up' : 'trend-down';
+    const icon = up ? '↑' : '↓';
+    return `<span class="${cls}" style="font-size:11px;margin-left:4px">${icon}${pct}% vs ${last.label}</span>`;
+  };
+  el.innerHTML = `<div class="card card-sm" style="background:var(--card2);border-style:dashed">
+    <h2 style="margin-bottom:8px">vs ${last.label}</h2>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px">
+      <div><span style="color:var(--muted)">Income</span> <span style="font-weight:600">${fmt(c.inc)}</span>${arrow(c.inc,last.totalIn,true)}</div>
+      <div><span style="color:var(--muted)">Outgoings</span> <span style="font-weight:600">${fmt(c.outs)}</span>${arrow(c.outs,last.totalOut,false)}</div>
+      <div><span style="color:var(--muted)">Free pot</span> <span style="font-weight:600">${fmt(c.free)}</span>${arrow(c.free,last.freePot,true)}</div>
+      <div><span style="color:var(--muted)">Savings</span> <span style="font-weight:600">${fmt(c.savingsAmt)}</span>${arrow(c.savingsAmt,(last.save1||0)+(last.save2||0),true)}</div>
+      <div><span style="color:var(--muted)">Total debt</span> <span style="font-weight:600">${fmt(c.totalDebt)}</span>${arrow(c.totalDebt,last.totalDebt,false)}</div>
+    </div>
+  </div>`;
+}
+
+// ── WEEKEND RULE FIELDS — add to income page ──────────────────────────────────
+// (Injected into onCoreInput to save paydayRule fields)
+
+// ── PAYMENT MODAL ─────────────────────────────────────────────────────────────
+let payDebtIdx = -1;
+window.openPaymentModal = i => {
+  const d = state.debts[i]; if(!d) return;
+  payDebtIdx = i;
+  document.getElementById('pay-modal-title').textContent = 'Pay: ' + d.name;
+  document.getElementById('pay-modal-sub').textContent =
+    `Balance: ${fmt(d.balance)} · APR: ${d.apr}% · Min payment: ${fmt(d.min)}`;
+  document.getElementById('pay-min-btn').textContent = `Pay minimum (${fmt(d.min)})`;
+  document.getElementById('pay-amount').value = d.min || '';
+  document.getElementById('pay-hint').textContent = '';
+  document.getElementById('payment-modal').classList.add('open');
+};
+window.closePaymentModal = () => {
+  document.getElementById('payment-modal').classList.remove('open');
+  payDebtIdx = -1;
+};
+window.setPayAmount = type => {
+  if(payDebtIdx < 0) return;
+  const d = state.debts[payDebtIdx];
+  if(type === 'min'){
+    document.getElementById('pay-amount').value = d.min || 0;
+    document.getElementById('pay-hint').textContent = 'Minimum payment — interest will still accumulate above this.';
+  } else {
+    document.getElementById('pay-amount').value = '';
+    document.getElementById('pay-amount').focus();
+    document.getElementById('pay-hint').textContent = 'Enter any amount above the minimum to pay down faster.';
+  }
+};
+window.confirmPayment = async () => {
+  if(payDebtIdx < 0) return;
+  const d = state.debts[payDebtIdx];
+  const amt = parseFloat(document.getElementById('pay-amount').value) || 0;
+  if(!amt){ showToast('Enter an amount'); return; }
+  if(amt < d.min){
+    document.getElementById('pay-hint').textContent = `⚠️ Below the minimum of ${fmt(d.min)} — lender may charge a fee.`;
+    return;
+  }
+  const newBal = Math.max(0, (parseFloat(d.balance)||0) - amt);
+  state.debts[payDebtIdx].balance = Math.round(newBal * 100) / 100;
+  // Log to history note
+  if(!state.paymentLog) state.paymentLog = [];
+  state.paymentLog.unshift({debt:d.name, amt, date:new Date().toISOString(), remaining:newBal});
+  if(state.paymentLog.length > 50) state.paymentLog = state.paymentLog.slice(0,50);
+  closePaymentModal();
+  await push();
+  showToast(newBal === 0 ? `🎉 ${d.name} cleared!` : `Payment of ${fmt(amt)} recorded`);
+};
+
+// ── GOAL AUTOMATION ───────────────────────────────────────────────────────────
+let goalAutoIdx = -1;
+window.openGoalAutoModal = i => {
+  const g = state.goals[i]; if(!g) return;
+  goalAutoIdx = i;
+  document.getElementById('goal-auto-name').textContent = 'Goal: ' + g.name;
+  document.getElementById('auto-day').value = g.autoDay || '';
+  document.getElementById('auto-weekend').value = g.autoWeekend || 'prev-friday';
+  document.getElementById('auto-amount').value = (parseFloat(g.contrib1)||0) + (parseFloat(g.contrib2)||0) || '';
+  document.getElementById('goal-auto-modal').classList.add('open');
+};
+window.closeGoalAutoModal = () => {
+  document.getElementById('goal-auto-modal').classList.remove('open');
+  goalAutoIdx = -1;
+};
+window.confirmGoalAuto = async () => {
+  if(goalAutoIdx < 0) return;
+  const day = parseInt(document.getElementById('auto-day').value) || null;
+  const rule = document.getElementById('auto-weekend').value;
+  const amt = parseFloat(document.getElementById('auto-amount').value) || 0;
+  if(!day || !amt){ showToast('Enter a day and amount'); return; }
+  state.goals[goalAutoIdx].autoDay = day;
+  state.goals[goalAutoIdx].autoWeekend = rule;
+  state.goals[goalAutoIdx].autoAmt = amt;
+  state.goals[goalAutoIdx].autoPaused = false;
+  closeGoalAutoModal();
+  await push(); showToast('Automation set up!');
+};
+window.toggleGoalAuto = async i => {
+  const g = state.goals[i]; if(!g) return;
+  g.autoPaused = !g.autoPaused;
+  await push();
+  showToast(g.autoPaused ? 'Automation paused — now manual' : 'Automation resumed');
+};
+
+// ── AUTO APPLY GOAL CONTRIBUTIONS ────────────────────────────────────────────
+// Called on load and on each day — applies automated goal contributions if payment day matches
+async function checkGoalAutomations(){
+  const today = new Date();
+  let changed = false;
+  (state.goals||[]).forEach((g,i) => {
+    if(!g.autoDay || g.autoPaused) return;
+    const payDate = smartPayday(g.autoDay, g.autoWeekend || 'none');
+    const isToday = payDate.getDate() === today.getDate() &&
+                    payDate.getMonth() === today.getMonth() &&
+                    payDate.getFullYear() === today.getFullYear();
+    // Only apply once per day — track last applied date
+    const lastApplied = g.lastAutoApplied ? new Date(g.lastAutoApplied) : null;
+    const alreadyDoneToday = lastApplied &&
+      lastApplied.getDate() === today.getDate() &&
+      lastApplied.getMonth() === today.getMonth() &&
+      lastApplied.getFullYear() === today.getFullYear();
+    if(isToday && !alreadyDoneToday){
+      const amt = parseFloat(g.autoAmt) || 0;
+      g.saved = Math.round(((parseFloat(g.saved)||0) + amt) * 100) / 100;
+      g.lastAutoApplied = today.toISOString();
+      changed = true;
+      showToast(`Auto: ${fmt(amt)} added to ${g.name}`);
+    }
+  });
+  if(changed) await push();
+}
+
+// ── UPDATED renderGoals (adds auto controls) ──────────────────────────────────
+function payerLabel(g,N1,N2){
+  const p=g.payer||'split';
+  const c1=parseFloat(g.contrib1)||0,c2=parseFloat(g.contrib2)||0;
+  if(p==='1') return N1+' pays '+fmt(c1)+'/mo';
+  if(p==='2') return N2+' pays '+fmt(c2)+'/mo';
+  if(c1>0&&c2>0) return N1+' '+fmt(c1)+' · '+N2+' '+fmt(c2)+'/mo';
+  return 'Split — '+fmt(c1+c2)+'/mo total';
+}
+function renderGoals(c){
+  const el=document.getElementById('goals-list');if(!el)return;
+  const goals=state.goals||[];
+  const N1=state.name1||'Person 1',N2=state.name2||'Person 2';
+  if(!goals.length){el.innerHTML='<div class="empty-state">No goals yet — add one above</div>';return;}
+  const colors=['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899'];
+  el.innerHTML=goals.map((g,i)=>{
+    const target=parseFloat(g.target)||0;
+    const hasTarget=target>0;
+    const saved=parseFloat(g.saved)||0;
+    const c1=parseFloat(g.contrib1)||0,c2=parseFloat(g.contrib2)||0;
+    const monthly=c1+c2;
+    const pct=hasTarget?Math.min(100,Math.round((saved/target)*100)):null;
+    const remaining=hasTarget?Math.max(0,target-saved):null;
+    const months=hasTarget&&monthly>0?Math.ceil(remaining/monthly):null;
+    const color=colors[i%colors.length];
+    const pl=payerLabel(g,N1,N2);
+    // Auto info
+    let autoInfo='';
+    if(g.autoDay){
+      const adjDate=smartPayday(g.autoDay,g.autoWeekend||'none');
+      const autoStr=`${fmt(g.autoAmt||0)}/mo on ${adjDate.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`;
+      autoInfo=g.autoPaused
+        ?`<span class="paused-badge">⏸ Paused — ${autoStr}</span>`
+        :`<span class="auto-badge">⚡ Auto — ${autoStr}</span>`;
+    }
+    return `<div class="goal-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div>
+          <div style="font-weight:700;font-size:15px">${g.name}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${hasTarget?'Target: '+fmt(target)+' · ':''} Saved: ${fmt(saved)}</div>
+          <div style="font-size:11px;color:var(--purple);margin-top:2px">${pl}</div>
+          ${autoInfo?`<div style="margin-top:4px">${autoInfo}</div>`:''}
+        </div>
+        <div style="text-align:right">
+          ${pct!==null?`<span class="badge" style="background:rgba(59,130,246,.15);color:${color}">${pct}%</span>`:`<span class="badge badge-amber">Open-ended</span>`}
+          ${months?`<div style="font-size:11px;color:var(--muted);margin-top:4px">~${months} months</div>`:''}
+        </div>
+      </div>
+      ${hasTarget?`<div class="goal-bar"><div class="goal-fill" style="width:${pct}%;background:linear-gradient(90deg,${color},${color}aa)"></div></div>`:`<div style="font-size:12px;color:var(--muted);margin:6px 0 2px">Saving ${fmt(monthly)}/mo · ${fmt(saved)} accumulated</div>`}
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btn-success btn-sm" onclick="contributeGoal(${i},${monthly||50})">+ ${fmt(monthly||50)}</button>
+        <button class="btn btn-ghost btn-sm" onclick="openGoalEdit(${i})">Edit</button>
+        <button class="btn btn-ghost btn-sm" onclick="openGoalAutoModal(${i})">${g.autoDay?'⚙️ Auto':'Set auto'}</button>
+        ${g.autoDay?`<button class="btn btn-ghost btn-sm" onclick="toggleGoalAuto(${i})">${g.autoPaused?'▶ Resume':'⏸ Pause'}</button>`:''}
+        <button class="btn btn-danger btn-sm" onclick="removeGoal(${i})">Remove</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── BALANCE PROJECTION ENGINE ────────────────────────────────────────────────
+// Returns a list of projected transactions for the rest of the current month,
+// per person, starting from their manually entered balance.
+function getMonthTransactions(person){
+  // person = 1 or 2
+  const N = person === 1 ? (state.name1||'Person 1') : (state.name2||'Person 2');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const year = today.getFullYear(), month = today.getMonth();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const txns = [];
+
+  const addTxn = (day, rule, label, amt, type) => {
+    if(!day) return;
+    const d = smartPayday(parseInt(day), rule||'none', new Date(year, month, 1));
+    if(d.getDate() >= today.getDate() && d.getMonth() === month) {
+      txns.push({ date: d, label, amt: Math.round(amt*100)/100, type });
+    }
+  };
+
+  // Payday income
+  if(person === 1 && state.payday1) addTxn(state.payday1, state.paydayRule1||'none', 'Payday ('+N+')', parseFloat(state.income1)||0, 'in');
+  if(person === 2 && state.payday2) addTxn(state.payday2, state.paydayRule2||'none', 'Payday ('+N+')', parseFloat(state.income2)||0, 'in');
+
+  // Variable income (no date — shown as pending)
+  const extras = person === 1 ? (state.extra1||[]) : (state.extra2||[]);
+  extras.forEach(e => txns.push({ date: null, label: e.name+' (pending)', amt: parseFloat(e.amt)||0, type:'in' }));
+
+  // Income share of shared bills with due day
+  const share = (parseFloat(state.income1)||0) + (parseFloat(state.income2)||0) > 0
+    ? (person===1?(parseFloat(state.income1)||0):(parseFloat(state.income2)||0)) /
+      ((parseFloat(state.income1)||0)+(parseFloat(state.income2)||0))
+    : 0.5;
+  (state.sharedBills||[]).forEach(b => {
+    if(b.day) addTxn(b.day, 'none', b.name+' (shared)', (parseFloat(b.amt)||0)*share, 'out');
+  });
+
+  // Personal bills
+  const persBills = person===1 ? (state.personal1||[]) : (state.personal2||[]);
+  persBills.forEach(b => { if(b.day) addTxn(b.day, 'none', b.name, parseFloat(b.amt)||0, 'out'); });
+
+  // Debt minimums — debts owned by this person
+  (state.debts||[]).forEach(d => {
+    const pid = String(d.person);
+    const isOwner = pid === String(person);
+    const isJoint = pid === 'shared';
+    if(isOwner || isJoint) {
+      const amt = isJoint ? (parseFloat(d.min)||0)*share : parseFloat(d.min)||0;
+      // Use day 1 as default for debts without a specific day
+      txns.push({ date: new Date(year, month, 28), label: d.name+' (min payment)', amt, type:'out' });
+    }
+  });
+
+  // Goal auto contributions
+  (state.goals||[]).forEach(g => {
+    if(!g.autoDay || g.autoPaused) return;
+    const c1 = parseFloat(g.contrib1)||0, c2 = parseFloat(g.contrib2)||0;
+    const myAmt = person===1 ? c1 : c2;
+    if(myAmt > 0) addTxn(g.autoDay, g.autoWeekend||'none', g.name+' (goal)', myAmt, 'out');
+  });
+
+  return txns.sort((a,b) => {
+    if(!a.date) return 1; if(!b.date) return -1;
+    return a.date - b.date;
+  });
+}
+
+function renderProjectedBalance(){
+  const el = document.getElementById('projected-bal-content'); if(!el) return;
+  const subEl = document.getElementById('d-bank-sub');
+  const b1 = parseFloat(state.bal1)||0, b2 = parseFloat(state.bal2)||0;
+  if(!b1 && !b2){ el.innerHTML = '<span style="color:var(--muted)">Enter bank balances above to see projections</span>'; return; }
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const N1 = state.name1||'Person 1', N2 = state.name2||'Person 2';
+
+  const buildRows = (person, startBal) => {
+    const txns = getMonthTransactions(person);
+    let running = startBal;
+    let rows = '';
+    txns.forEach(t => {
+      if(t.type === 'in') running += t.amt;
+      else running -= t.amt;
+      const dateStr = t.date ? t.date.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : 'pending';
+      const isToday = t.date && t.date.getDate() === today.getDate() && t.date.getMonth() === today.getMonth();
+      const amtColor = t.type==='in' ? 'var(--em2)' : 'var(--red)';
+      const sign = t.type==='in' ? '+' : '−';
+      rows += `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(100,116,139,.1);font-size:12px">
+        <div style="flex:1">
+          <span style="color:var(--muted);min-width:52px;display:inline-block">${dateStr}${isToday?' ★':''}</span>
+          <span style="color:var(--text)">${t.label}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
+          <span style="color:${amtColor};font-weight:600">${sign}${fmt(t.amt)}</span>
+          <span style="color:var(--muted);min-width:72px;text-align:right">${fmt(running)}</span>
+        </div>
+      </div>`;
+    });
+    const endColor = running >= 0 ? 'var(--em2)' : 'var(--red)';
+    return { rows, endBal: running };
+  };
+
+  const r1 = buildRows(1, b1), r2 = buildRows(2, b2);
+  const projTotal = r1.endBal + r2.endBal;
+
+  el.innerHTML = `
+    <div class="grid2" style="gap:16px;margin-bottom:12px">
+      <div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--blue2)">${N1}</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Start: ${fmt(b1)}</div>
+        ${r1.rows || '<div style="color:var(--muted);font-size:12px;padding:8px 0">No scheduled events this month</div>'}
+        <div style="font-size:13px;font-weight:700;color:${r1.endBal>=0?'var(--em2)':'var(--red)'};margin-top:8px">End of month: ${fmt(r1.endBal)}</div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--em2)">${N2}</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Start: ${fmt(b2)}</div>
+        ${r2.rows || '<div style="color:var(--muted);font-size:12px;padding:8px 0">No scheduled events this month</div>'}
+        <div style="font-size:13px;font-weight:700;color:${r2.endBal>=0?'var(--em2)':'var(--red)'};margin-top:8px">End of month: ${fmt(r2.endBal)}</div>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:var(--muted)">Projected combined end-of-month</span>
+      <span style="font-size:16px;font-weight:700;color:${projTotal>=0?'var(--em2)':'var(--red)'}">${fmt(projTotal)}</span>
+    </div>`;
+
+  // Update dashboard sub-label
+  if(subEl) subEl.textContent = `manual + projections`;
+
+  // Update bal-updated-label badge
+  const bl = document.getElementById('bal-updated-label');
+  if(bl){ bl.textContent = `updated ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`; }
+}
+
+// ── Update confirmPayment to also adjust bank balance ─────────────────────────
+// (patched version — deducts payment from the payer's manual balance)
+const _origConfirmPayment = window.confirmPayment;
+window.confirmPayment = async () => {
+  if(payDebtIdx < 0) return;
+  const d = state.debts[payDebtIdx];
+  const amt = parseFloat(document.getElementById('pay-amount').value) || 0;
+  if(!amt){ showToast('Enter an amount'); return; }
+  if(amt < (parseFloat(d.min)||0)){
+    document.getElementById('pay-hint').textContent = '⚠️ Below the minimum — lender may charge a fee.';
+    return;
+  }
+  const newBal = Math.max(0, (parseFloat(d.balance)||0) - amt);
+  state.debts[payDebtIdx].balance = Math.round(newBal*100)/100;
+  // Deduct from payer's bank balance
+  const pid = String(d.person);
+  if(pid === '1' || pid === 'shared') state.bal1 = Math.max(0, Math.round(((parseFloat(state.bal1)||0) - (pid==='shared'?amt*(state._share1||0.5):amt))*100)/100);
+  if(pid === '2' || pid === 'shared') state.bal2 = Math.max(0, Math.round(((parseFloat(state.bal2)||0) - (pid==='shared'?amt*(state._share2||0.5):amt))*100)/100);
+  if(!state.paymentLog) state.paymentLog = [];
+  state.paymentLog.unshift({debt:d.name, amt, date:new Date().toISOString(), remaining:newBal});
+  if(state.paymentLog.length > 50) state.paymentLog = state.paymentLog.slice(0,50);
+  closePaymentModal();
+  await push();
+  showToast(newBal === 0 ? '🎉 '+d.name+' cleared!' : 'Payment of '+fmt(amt)+' recorded · balance updated');
+};
+
+// ── Auto goal contribution also updates bank balance ──────────────────────────
+const _origCheckGoalAuto = checkGoalAutomations;
+async function checkGoalAutomations(){
+  const today = new Date();
+  let changed = false;
+  const c = calc();
+  (state.goals||[]).forEach((g,i) => {
+    if(!g.autoDay || g.autoPaused) return;
+    const payDate = smartPayday(g.autoDay, g.autoWeekend||'none');
+    const isToday = payDate.getDate()===today.getDate() && payDate.getMonth()===today.getMonth() && payDate.getFullYear()===today.getFullYear();
+    const lastApplied = g.lastAutoApplied ? new Date(g.lastAutoApplied) : null;
+    const alreadyDone = lastApplied && lastApplied.getDate()===today.getDate() && lastApplied.getMonth()===today.getMonth() && lastApplied.getFullYear()===today.getFullYear();
+    if(isToday && !alreadyDone){
+      const c1amt = parseFloat(g.contrib1)||0, c2amt = parseFloat(g.contrib2)||0;
+      g.saved = Math.round(((parseFloat(g.saved)||0) + c1amt + c2amt)*100)/100;
+      // Deduct from each person's bank balance
+      if(c1amt > 0) state.bal1 = Math.max(0, Math.round(((parseFloat(state.bal1)||0) - c1amt)*100)/100);
+      if(c2amt > 0) state.bal2 = Math.max(0, Math.round(((parseFloat(state.bal2)||0) - c2amt)*100)/100);
+      g.lastAutoApplied = today.toISOString();
+      changed = true;
+      showToast('Auto: '+fmt(c1amt+c2amt)+' added to '+g.name+' · balances updated');
+    }
+  });
+  if(changed) await push();
+}
+
+// ── Payday auto-add income to balance ────────────────────────────────────────
+// Check if today is payday and auto-credit the balance (once per day)
+async function checkPaydayAutoCredit(){
+  const today = new Date();
+  let changed = false;
+  [[1,'paydayCredited1',state.payday1,state.paydayRule1,state.income1,'bal1'],
+   [2,'paydayCredited2',state.payday2,state.paydayRule2,state.income2,'bal2']
+  ].forEach(([pid, creditKey, pday, rule, inc, balKey]) => {
+    if(!pday || !inc) return;
+    const adjusted = smartPayday(parseInt(pday), rule||'none');
+    const isToday = adjusted.getDate()===today.getDate() && adjusted.getMonth()===today.getMonth() && adjusted.getFullYear()===today.getFullYear();
+    const lastCredited = state[creditKey] ? new Date(state[creditKey]) : null;
+    const alreadyDone = lastCredited && lastCredited.getDate()===today.getDate() && lastCredited.getMonth()===today.getMonth() && lastCredited.getFullYear()===today.getFullYear();
+    if(isToday && !alreadyDone){
+      state[balKey] = Math.round(((parseFloat(state[balKey])||0) + (parseFloat(inc)||0))*100)/100;
+      state[creditKey] = today.toISOString();
+      changed = true;
+      showToast('💰 Payday! '+(pid===1?(state.name1||'P1'):(state.name2||'P2'))+' +'+fmt(inc)+' credited to balance');
+    }
+  });
+  if(changed) await push();
+}
+
+// ── Wire renderProjectedBalance into renderAll ────────────────────────────────
+const _origRenderAll = renderAll;
 
 initFS();
 </script>
