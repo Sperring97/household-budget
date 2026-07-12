@@ -1618,7 +1618,7 @@ window.savePIN = () => {
   if(val.length !== 4 || !/^\d{4}$/.test(val)){ showToast('PIN must be exactly 4 digits'); return; }
   localStorage.setItem('hb-pin', val);
   document.getElementById('pin-set-input').value = '';
-  showToast('PIN set! You'll need it next time you open the app.');
+  showToast('PIN set! You\'ll need it next time you open the app.');
 };
 window.clearPIN = () => { localStorage.removeItem('hb-pin'); showToast('PIN removed'); };
 function showPINScreen(mode){
@@ -1772,25 +1772,6 @@ window.setPayAmount = type => {
     document.getElementById('pay-amount').focus();
     document.getElementById('pay-hint').textContent = 'Enter any amount above the minimum to pay down faster.';
   }
-};
-window.confirmPayment = async () => {
-  if(payDebtIdx < 0) return;
-  const d = state.debts[payDebtIdx];
-  const amt = parseFloat(document.getElementById('pay-amount').value) || 0;
-  if(!amt){ showToast('Enter an amount'); return; }
-  if(amt < d.min){
-    document.getElementById('pay-hint').textContent = `⚠️ Below the minimum of ${fmt(d.min)} — lender may charge a fee.`;
-    return;
-  }
-  const newBal = Math.max(0, (parseFloat(d.balance)||0) - amt);
-  state.debts[payDebtIdx].balance = Math.round(newBal * 100) / 100;
-  // Log to history note
-  if(!state.paymentLog) state.paymentLog = [];
-  state.paymentLog.unshift({debt:d.name, amt, date:new Date().toISOString(), remaining:newBal});
-  if(state.paymentLog.length > 50) state.paymentLog = state.paymentLog.slice(0,50);
-  closePaymentModal();
-  await push();
-  showToast(newBal === 0 ? `🎉 ${d.name} cleared!` : `Payment of ${fmt(amt)} recorded`);
 };
 
 // ── GOAL AUTOMATION ───────────────────────────────────────────────────────────
@@ -2050,8 +2031,7 @@ function renderProjectedBalance(){
 
 // ── Update confirmPayment to also adjust bank balance ─────────────────────────
 // (patched version — deducts payment from the payer's manual balance)
-const _origConfirmPayment = window.confirmPayment;
-window.confirmPayment = async () => {
+const _origConfirmPayment = window.confirmPayment = async () => {
   if(payDebtIdx < 0) return;
   const d = state.debts[payDebtIdx];
   const amt = parseFloat(document.getElementById('pay-amount').value) || 0;
