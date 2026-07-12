@@ -896,24 +896,6 @@ function renderAll(){
 }
 
 // ── Payday countdown ─────────────────────────────────────────────────────────
-function renderPaydayStrip(N1,N2){
-  const el=document.getElementById('payday-strip');if(!el)return;
-  const today=new Date();const d=today.getDate();
-  const countdown=(payday)=>{
-    if(!payday)return null;
-    let days=payday-d;
-    if(days<0){const dim=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();days=dim-d+payday;}
-    return days===0?'TODAY':days===1?'tomorrow':`in ${days} days`;
-  };
-  const c1=countdown(state.payday1),c2=countdown(state.payday2);
-  const card=(name,color,inc,cd,pday)=>!pday?'':`
-    <div class="payday-card">
-      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${name}'s payday</div>
-      <div style="font-size:20px;font-weight:700;color:${color}">${cd}</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:2px">${fmt(inc)} expected · day ${pday}</div>
-    </div>`;
-  el.innerHTML=card(N1,'var(--blue2)',state.income1,c1,state.payday1)+card(N2,'var(--em2)',state.income2,c2,state.payday2);
-}
 
 // ── Person columns ────────────────────────────────────────────────────────────
 const avatar=(name,color)=>`<div class="pc-avatar" style="background:${color}">${(name||'?').charAt(0).toUpperCase()}</div>`;
@@ -1067,52 +1049,6 @@ window.contributeGoal=async(i,amt)=>{
   g.saved=Math.round((Math.min(parseFloat(g.target)||Infinity,(parseFloat(g.saved)||0)+amt))*100)/100;
   await push();showToast('Contribution added!');
 };
-function payerLabel(g,N1,N2){
-  const p=g.payer||'split';
-  const c1=parseFloat(g.contrib1)||0,c2=parseFloat(g.contrib2)||0;
-  if(p==='1') return N1+' pays '+fmt(c1)+'/mo';
-  if(p==='2') return N2+' pays '+fmt(c2)+'/mo';
-  if(c1>0&&c2>0) return N1+' '+fmt(c1)+' · '+N2+' '+fmt(c2)+'/mo';
-  return 'Split — '+fmt(c1+c2)+'/mo total';
-}
-function renderGoals(c){
-  const el=document.getElementById('goals-list');if(!el)return;
-  const goals=state.goals||[];
-  const N1=state.name1||'Person 1',N2=state.name2||'Person 2';
-  if(!goals.length){el.innerHTML='<div class="empty-state">No goals yet — add one above</div>';return;}
-  const colors=['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899'];
-  el.innerHTML=goals.map((g,i)=>{
-    const target=parseFloat(g.target)||0;
-    const hasTarget=target>0;
-    const saved=parseFloat(g.saved)||0;
-    const c1=parseFloat(g.contrib1)||0,c2=parseFloat(g.contrib2)||0;
-    const monthly=c1+c2;
-    const pct=hasTarget?Math.min(100,Math.round((saved/target)*100)):null;
-    const remaining=hasTarget?Math.max(0,target-saved):null;
-    const months=hasTarget&&monthly>0?Math.ceil(remaining/monthly):null;
-    const color=colors[i%colors.length];
-    const pl=payerLabel(g,N1,N2);
-    return `<div class="goal-card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-        <div>
-          <div style="font-weight:700;font-size:15px">${g.name}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">${hasTarget?'Target: '+fmt(target)+' · ':''} Saved: ${fmt(saved)}</div>
-          <div style="font-size:11px;color:var(--purple);margin-top:2px">${pl}</div>
-        </div>
-        <div style="text-align:right">
-          ${pct!==null?`<span class="badge" style="background:rgba(59,130,246,.15);color:${color}">${pct}%</span>`:`<span class="badge badge-amber">Open-ended</span>`}
-          ${months?`<div style="font-size:11px;color:var(--muted);margin-top:4px">~${months} months</div>`:''}
-        </div>
-      </div>
-      ${hasTarget?`<div class="goal-bar"><div class="goal-fill" style="width:${pct}%;background:linear-gradient(90deg,${color},${color}aa)"></div></div>`:`<div style="font-size:12px;color:var(--muted);margin:6px 0 2px">Saving ${fmt(monthly)}/mo · ${fmt(saved)} accumulated so far</div>`}
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-        <button class="btn btn-success btn-sm" onclick="contributeGoal(${i},${monthly||50})">+ ${fmt(monthly||50)}</button>
-        <button class="btn btn-ghost btn-sm" onclick="openGoalEdit(${i})">Edit</button>
-        <button class="btn btn-danger btn-sm" onclick="removeGoal(${i})">Remove</button>
-      </div>
-    </div>`;
-  }).join('');
-}
 
 // ── Bill Calendar ─────────────────────────────────────────────────────────────
 window.changeCalMonth=delta=>{calOffset+=delta;renderCalendar();};
@@ -1811,32 +1747,7 @@ window.toggleGoalAuto = async i => {
 
 // ── AUTO APPLY GOAL CONTRIBUTIONS ────────────────────────────────────────────
 // Called on load and on each day — applies automated goal contributions if payment day matches
-async function checkGoalAutomations(){
-  const today = new Date();
-  let changed = false;
-  (state.goals||[]).forEach((g,i) => {
-    if(!g.autoDay || g.autoPaused) return;
-    const payDate = smartPayday(g.autoDay, g.autoWeekend || 'none');
-    const isToday = payDate.getDate() === today.getDate() &&
-                    payDate.getMonth() === today.getMonth() &&
-                    payDate.getFullYear() === today.getFullYear();
-    // Only apply once per day — track last applied date
-    const lastApplied = g.lastAutoApplied ? new Date(g.lastAutoApplied) : null;
-    const alreadyDoneToday = lastApplied &&
-      lastApplied.getDate() === today.getDate() &&
-      lastApplied.getMonth() === today.getMonth() &&
-      lastApplied.getFullYear() === today.getFullYear();
-    if(isToday && !alreadyDoneToday){
-      const amt = parseFloat(g.autoAmt) || 0;
-      g.saved = Math.round(((parseFloat(g.saved)||0) + amt) * 100) / 100;
-      g.lastAutoApplied = today.toISOString();
-      changed = true;
-      showToast(`Auto: ${fmt(amt)} added to ${g.name}`);
-    }
-  });
-  if(changed) await push();
-}
-
+async 
 // ── UPDATED renderGoals (adds auto controls) ──────────────────────────────────
 function payerLabel(g,N1,N2){
   const p=g.payer||'split';
