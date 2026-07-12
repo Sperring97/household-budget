@@ -1749,7 +1749,6 @@ window.toggleGoalAuto = async i => {
 
 // ── AUTO APPLY GOAL CONTRIBUTIONS ────────────────────────────────────────────
 // Called on load and on each day — applies automated goal contributions if payment day matches
-async 
 // ── UPDATED renderGoals (adds auto controls) ──────────────────────────────────
 function payerLabel(g,N1,N2){
   const p=g.payer||'split';
@@ -1968,7 +1967,6 @@ const _origConfirmPayment = window.confirmPayment = async () => {
 };
 
 // ── Auto goal contribution also updates bank balance ──────────────────────────
-const _origCheckGoalAuto = checkGoalAutomations;
 async function checkGoalAutomations(){
   const today = new Date();
   let changed = false;
@@ -2017,7 +2015,6 @@ async function checkPaydayAutoCredit(){
 }
 
 // ── Wire renderProjectedBalance into renderAll ────────────────────────────────
-const _origRenderAll = renderAll;
 
 initFS();
 </script>
