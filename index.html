@@ -690,13 +690,15 @@ const DOC = doc(db,'household','main');
 
 let state = {
   name1:'Person 1',name2:'Person 2',
-  income1:0,income2:0,payday1:25,payday2:1,
+  income1:0,income2:0,payday1:0,payday2:0,
+  paydayRule1:'none',paydayRule2:'none',
   extra1:[],extra2:[],
-  bal1:0,bal2:0,
+  bal1:0,bal2:0,bal1Date:'',bal2Date:'',
+  paydayCredited1:'',paydayCredited2:'',
   sharedBills:[],personal1:[],personal2:[],
   debts:[],saveSlider:20,
   budgets:[],spends:[],
-  goals:[],history:[]
+  goals:[],history:[],paymentLog:[]
 };
 let ch={donut:null,bar:null,debt:null};
 let currentPerson=1,extraPerson=1;
@@ -1993,7 +1995,7 @@ async function checkGoalAutomations(){
 
 // ── Payday auto-add income to balance ────────────────────────────────────────
 // Check if today is payday and auto-credit the balance (once per day)
-async function checkPaydayAutoCredit(){
+async async function checkPaydayAutoCredit(){
   const today = new Date();
   let changed = false;
   [[1,'paydayCredited1',state.payday1,state.paydayRule1,state.income1,'bal1'],
