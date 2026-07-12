@@ -547,7 +547,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
           <button class="btn btn-ghost btn-sm" onclick="resetMonth()">Start fresh month</button>
           <hr class="divider">
           <h2>🔒 PIN lock</h2>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Set a 4-digit PIN — both of you need it to open the app. Tap Skip on the PIN screen to disable.</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Set a 4-digit PIN — both of you need it to open the app. Remove it here if you no longer want a PIN.</div>
           <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
             <input type="password" id="pin-set-input" placeholder="New 4-digit PIN" maxlength="4" style="max-width:160px">
             <button class="btn btn-primary btn-sm" onclick="savePIN()">Set PIN</button>
@@ -587,7 +587,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
     <button class="pin-key" onclick="pinPress('9')">9</button>
     <button class="pin-key" style="font-size:14px" onclick="pinClear()">⌫</button>
     <button class="pin-key" onclick="pinPress('0')">0</button>
-    <button class="pin-key" style="font-size:13px;color:var(--muted)" onclick="pinSkip()">Skip</button>
+    <button class="pin-key" style="font-size:16px" onclick="pinClear()">⌫</button>
   </div>
   <div class="pin-error" id="pin-error"></div>
 </div>
@@ -1574,7 +1574,6 @@ window.pinPress = d => {
   if(pinBuffer.length === 4) setTimeout(checkPIN, 120);
 };
 window.pinClear = () => { pinBuffer = pinBuffer.slice(0,-1); updatePINDots(); };
-window.pinSkip = () => { hidePINScreen(); };
 function updatePINDots(){
   for(let i=0;i<4;i++){
     const d = document.getElementById('pd'+i);
