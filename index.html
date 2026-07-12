@@ -1995,7 +1995,7 @@ async function checkGoalAutomations(){
 
 // ── Payday auto-add income to balance ────────────────────────────────────────
 // Check if today is payday and auto-credit the balance (once per day)
-async async function checkPaydayAutoCredit(){
+async function checkPaydayAutoCredit(){
   const today = new Date();
   let changed = false;
   [[1,'paydayCredited1',state.payday1,state.paydayRule1,state.income1,'bal1'],
